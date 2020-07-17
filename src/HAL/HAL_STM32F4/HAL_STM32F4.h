@@ -23,15 +23,25 @@
 #define cli() noInterrupts()
 #define sei() interrupts()
 
+// New symbols for the Serial ports so they can be remapped if necessary -----------------------------
 #define SerialA Serial
-#define SerialB Serial1
-#define SerialC Serial3
-
 // SerialA is always enabled, SerialB and SerialC are optional
+#define SerialB Serial1
 #define HAL_SERIAL_B_ENABLED
-#define HAL_SERIAL_C_ENABLED
+#if SERIAL_C_BAUD_DEFAULT != OFF
+  #define SerialC Serial3
+  #define HAL_SERIAL_C_ENABLED
+#endif
 
-// New symbol for the default I2C port -------------------------------------------------------------
+// handle special case of using software serial for a GPS
+#if SerialGPS == SoftwareSerial2
+  #include <SoftwareSerial.h>
+  SoftwareSerial HWSerialGPS(PA3, PA2); // RX2, TX2
+  #undef SerialGPS
+  #define SerialGPS HWSerialGPS
+#endif
+
+// New symbol for the default I2C port ---------------------------------------------------------------
 #define HAL_Wire Wire
 
 // Non-volatile storage ------------------------------------------------------------------------------
@@ -39,7 +49,7 @@
 #undef E2END
 #include "../drivers/NV_I2C_EEPROM_24LC16_C.h"
 
-//--------------------------------------------------------------------------------------------------
+//----------------------------------------------------------------------------------------------------
 // Nanoseconds delay function
 unsigned int _nanosPerPass=1;
 void delayNanoseconds(unsigned int n) {

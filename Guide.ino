@@ -155,9 +155,7 @@ CommandErrors startGuideAxis1(char direction, int guideRate, long guideDuration)
 
 // stops guide in RA or Azm
 void stopGuideAxis1() {
-  if ((parkStatus == NotParked) && (trackingState != TrackingMoveTo)) {
-    cli(); if ((guideDirAxis1) && (guideDirAxis1 != 'b')) { guideDirAxis1='b'; } sei();
-  }
+  cli(); if (guideDirAxis1 && guideDirAxis1 != 'b') { guideDirAxis1='b'; } sei();
 }
 
 // start a guide in Dec or Alt, direction must be 'n', 's', or 'b', guideRate is the rate selection (0 to 9), guideDuration is in ms (0 to ignore) 
@@ -211,9 +209,7 @@ CommandErrors startGuideAxis2(char direction, int guideRate, long guideDuration)
 
 // stops guide in Dec or Alt
 void stopGuideAxis2() {
-  if ((parkStatus == NotParked) && (trackingState != TrackingMoveTo)) {
-    cli(); if ((guideDirAxis2) && (guideDirAxis2 != 'b')) { guideDirAxis2='b'; } sei();
-  }
+  cli(); if (guideDirAxis2 && guideDirAxis2 != 'b') { guideDirAxis2='b'; } sei();
 }
 
 // start a guide spiral, guideRate is the rate selection (0 to 9), guideDuration is in ms (0 to ignore) 

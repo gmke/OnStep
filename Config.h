@@ -127,8 +127,10 @@
 #define AXIS1_DRIVER_REVERSE          OFF //    OFF, ON Reverses movement direction, or reverse wiring instead to correct.   <-Often
 #define AXIS1_DRIVER_STATUS           OFF //    OFF, TMC_SPI, HIGH, or LOW.  Polling for driver status info/fault detection.  Option
 
-#define AXIS1_LIMIT_UNDER_POLE        180 //    180, n. Where n=150..180 (degrees.) Max HA hour angle + or - for Eq modes.    Infreq
-#define AXIS1_LIMIT_MAXAZM            360 //    360, n. Where n=180..360 (degrees.) Max Azimuth + or - for AltAzm mode only.  Infreq
+#define AXIS1_LIMIT_MIN              -180 //   -180, n. Where n=-105..-180 (degrees.) Minimum "Hour Angle" for Eq modes.      Adjust
+                                          //         n. Where n=-180..-360 (degrees.) Minimum Azimuth for AltAzm mode.
+#define AXIS1_LIMIT_MAX               180 //    180, n. Where n= 105.. 180 (degrees.) Maximum "Hour Angle" for Eq modes.      Adjust
+                                          //         n. Where n= 180.. 360 (degrees.) Maximum Azimuth for AltAzm mode.
 
 // AXIS2 DEC/ALT
 // see https://onstep.groups.io/g/main/wiki/6-Configuration#AXIS2
@@ -146,8 +148,8 @@
 #define AXIS2_DRIVER_STATUS           OFF //    OFF, TMC_SPI, HIGH, or LOW.  Polling for driver status info/fault detection.  Option
 #define AXIS2_TANGENT_ARM             OFF //    OFF, ON +limit range below. Set cntr w/[Reset Home] Return cntr w/[Find Home] Infreq
 
-#define AXIS2_LIMIT_MIN               -91 //    -91, n. Where n=-91..0 (degrees.) Minimum allowed declination.                Infreq
-#define AXIS2_LIMIT_MAX                91 //     91, n. Where n=0..91 (degrees.) Maximum allowed declination.                 Infreq
+#define AXIS2_LIMIT_MIN               -90 //    -90, n. Where n=-90..0 (degrees.) Minimum allowed declination.                Infreq
+#define AXIS2_LIMIT_MAX                90 //     90, n. Where n=0..90 (degrees.) Maximum allowed declination.                 Infreq
 
 // AXIS3 ROTATOR
 // see https://onstep.groups.io/g/main/wiki/6-Configuration#AXIS3
@@ -180,7 +182,7 @@
 #define AXIS4_DRIVER_REVERSE          OFF //    OFF, ON Reverses movement direction, or reverse wiring instead to correct.    Option
 #define AXIS4_DRIVER_DC_MODE          OFF //    OFF, DRV8825 for pwm dc motor control on stepper driver outputs.              Option
 
-#define AXIS4_LIMIT_MIN_RATE           10 //     10, n. Where n=1..1000 (um/s.) Minimum microns/second. In DC mode, min pwr % Adjust
+#define AXIS4_LIMIT_MIN_RATE           50 //     50, n. Where n=1..1000 (um/s.) Minimum microns/second. In DC mode, min pwr.  Adjust
 #define AXIS4_LIMIT_MIN                 0 //      0, n. Where n=0..500 (millimeters.) Minimum allowed position.               Adjust
 #define AXIS4_LIMIT_MAX                50 //     50, n. Where n=0..500 (millimeters.) Maximum allowed position.               Adjust
 
@@ -198,7 +200,7 @@
 #define AXIS5_DRIVER_REVERSE          OFF //    OFF, ON Reverses movement direction, or reverse wiring instead to correct.    Option
 #define AXIS5_DRIVER_DC_MODE          OFF //    OFF, DRV8825 for pwm dc motor control on stepper driver outputs.              Option
 
-#define AXIS5_LIMIT_MIN_RATE           10 //     10, n. Where n=1..1000 (um/s.) Minimum microns/second. In DC mode, min pwr % Adjust
+#define AXIS5_LIMIT_MIN_RATE           50 //     50, n. Where n=1..1000 (um/s.) Minimum microns/second. In DC mode, min pwr.  Adjust
 #define AXIS5_LIMIT_MIN                 0 //      0, n. Where n=0..500 (millimeters.) Minimum allowed position.               Adjust
 #define AXIS5_LIMIT_MAX                50 //     50, n. Where n=0..500 (millimeters.) Maximum allowed position.               Adjust
 

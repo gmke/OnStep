@@ -5,13 +5,19 @@
 unsigned long _coord_t=0;
 
 // help with commands
-enum Command {COMMAND_NONE, COMMAND_SERIAL_A, COMMAND_SERIAL_B, COMMAND_SERIAL_C, COMMAND_SERIAL_ST4, COMMAND_SERIAL_X};
+enum Command {COMMAND_NONE, COMMAND_SERIAL_A, COMMAND_SERIAL_B, COMMAND_SERIAL_C, COMMAND_SERIAL_D, COMMAND_SERIAL_E, COMMAND_SERIAL_ST4, COMMAND_SERIAL_X};
 cb cmdA;  // the first Serial is always enabled
 #ifdef HAL_SERIAL_B_ENABLED
 cb cmdB;
 #endif
 #ifdef HAL_SERIAL_C_ENABLED
 cb cmdC;
+#endif
+#ifdef HAL_SERIAL_D_ENABLED
+cb cmdD;
+#endif
+#ifdef HAL_SERIAL_E_ENABLED
+cb cmdE;
 #endif
 #if ST4_HAND_CONTROL == ON && ST4_INTERFACE != OFF
 cb cmdST4;
@@ -49,6 +55,12 @@ void processCommands() {
 #ifdef HAL_SERIAL_C_ENABLED
     if (SerialC.available() > 0 && !cmdC.ready()) cmdC.add(SerialC.read());
 #endif
+#ifdef HAL_SERIAL_D_ENABLED
+    if (SerialD.available() > 0 && !cmdD.ready()) cmdD.add(SerialD.read());
+#endif
+#ifdef HAL_SERIAL_E_ENABLED
+    if (SerialE.available() > 0 && !cmdE.ready()) cmdE.add(SerialE.read());
+#endif
 #if ST4_HAND_CONTROL == ON && ST4_INTERFACE != OFF
     if (SerialST4.available() > 0 && !cmdST4.ready()) cmdST4.add(SerialST4.read());
 #endif
@@ -72,6 +84,12 @@ void processCommands() {
 #endif
 #ifdef HAL_SERIAL_C_ENABLED
     else if (cmdC.ready()) { strcpy(command,cmdC.getCmd()); strcpy(parameter,cmdC.getParameter()); cmdC.flush(); process_command=COMMAND_SERIAL_C; }
+#endif
+#ifdef HAL_SERIAL_D_ENABLED
+    else if (cmdD.ready()) { strcpy(command,cmdD.getCmd()); strcpy(parameter,cmdD.getParameter()); cmdD.flush(); process_command=COMMAND_SERIAL_D; }
+#endif
+#ifdef HAL_SERIAL_E_ENABLED
+    else if (cmdE.ready()) { strcpy(command,cmdE.getCmd()); strcpy(parameter,cmdE.getParameter()); cmdE.flush(); process_command=COMMAND_SERIAL_E; }
 #endif
 #if ST4_HAND_CONTROL == ON && ST4_INTERFACE != OFF
     else if (cmdST4.ready()) { strcpy(command,cmdST4.getCmd()); strcpy(parameter,cmdST4.getParameter()); cmdST4.flush(); process_command=COMMAND_SERIAL_ST4; }
@@ -256,7 +274,7 @@ void processCommands() {
 
 //  E - Enter special mode
       if (command[0] == 'E') {
-#ifdef DEBUG_ON
+#if DEBUG != OFF
 // :EC[s]# Echo string [c] on SerialA.
 //            Return: Nothing
         if (command[1] == 'C') {
@@ -556,6 +574,12 @@ void processCommands() {
 #ifdef HAL_SERIAL_C_ENABLED
         if (process_command == COMMAND_SERIAL_C) e=cmdC.lastError; else
 #endif
+#ifdef HAL_SERIAL_D_ENABLED
+        if (process_command == COMMAND_SERIAL_D) e=cmdD.lastError; else
+#endif
+#ifdef HAL_SERIAL_E_ENABLED
+        if (process_command == COMMAND_SERIAL_E) e=cmdE.lastError; else
+#endif
 #if ST4_HAND_CONTROL == ON && ST4_INTERFACE != OFF
         if (process_command == COMMAND_SERIAL_ST4) e=cmdST4.lastError; else
 #endif
@@ -606,7 +630,7 @@ void processCommands() {
         booleanReply=false; 
       } else
 // :Gm#       Gets the meridian pier-side
-//            Returns: E#, W#, N# (none/parked), ?# (Meridian flip in progress) 
+//            Returns: E#, W#, N# (none/parked)
       if (command[1] == 'm' && parameter[0] == 0)  {
         reply[0]='?'; reply[1]=0;
         if (getInstrPierSide() == PierSideNone) reply[0]='N';
@@ -671,7 +695,8 @@ void processCommands() {
 //            Returns: n.n# (OnStep returns more decimal places than LX200 standard)
       if (command[1] == 'T' && parameter[0] == 0)  {
         char temp[10];
-        if (trackingState == TrackingSidereal && !trackingSyncInProgress()) f=getTrackingRate60Hz(); else f=0.0;
+        // during slews, if tracking is enabled it's at the default sidereal rate
+        if (trackingState == TrackingMoveTo && lastTrackingState == TrackingSidereal) f=1.00273790935*60.0; else f=getTrackingRate60Hz();
         dtostrf(f,0,5,temp);
         strcpy(reply,temp);
         booleanReply=false;
@@ -683,7 +708,8 @@ void processCommands() {
 //            Returns: s#
       if (command[1] == 'U' && parameter[0] == 0)  {
         i=0;
-        if (trackingState != TrackingSidereal || trackingSyncInProgress()) reply[i++]='n';                   // [n]ot tracking
+        if (trackingState != TrackingSidereal &&
+          !(trackingState == TrackingMoveTo && lastTrackingState == TrackingSidereal)) reply[i++]='n';       // [n]ot tracking
         if (trackingState != TrackingMoveTo && !trackingSyncInProgress())  reply[i++]='N';                   // [N]o goto
         const char *parkStatusCh = "pIPF";       reply[i++]=parkStatusCh[parkStatus];                        // not [p]arked, parking [I]n-progress, [P]arked, Park [F]ailed
         if (pecRecorded)                         reply[i++]='R';                                             // PEC data has been [R]ecorded
@@ -736,7 +762,8 @@ void processCommands() {
 //            Returns: s#
       if (command[1] == 'u' && parameter[0] == 0)  {
         memset(reply,(char)0b10000000,9);
-        if (trackingState != TrackingSidereal || trackingSyncInProgress()) reply[0]|=0b10000001;             // Not tracking
+        if (trackingState != TrackingSidereal &&
+          !(trackingState == TrackingMoveTo && lastTrackingState == TrackingSidereal)) reply[0]|=0b10000001; // Not tracking
         if (trackingState != TrackingMoveTo && !trackingSyncInProgress())  reply[0]|=0b10000010;             // No goto
         if (PPSsynced)                               reply[0]|=0b10000100;                                   // PPS sync
         if (guideDirAxis1 || guideDirAxis2)          reply[0]|=0b10001000;                                   // Guide active
@@ -956,10 +983,10 @@ void processCommands() {
               case '9': sprintf(reply,"%ld",(long)round(degreesPastMeridianE*4.0)); booleanReply=false; break;    // minutes past meridianE
               case 'A': sprintf(reply,"%ld",(long)round(degreesPastMeridianW*4.0)); booleanReply=false; break;    // minutes past meridianW
 #endif
-              case 'B': sprintf(reply,"%ld",(long)round(AXIS1_LIMIT_UNDER_POLE/15.0)); booleanReply=false; break; // in hours
+              case 'B': sprintf(reply,"%ld",(long)round(AXIS1_LIMIT_MAX/15.0)); booleanReply=false; break; // in hours
               case 'C': sprintf(reply,"%ld",(long)round(AXIS2_LIMIT_MIN)); booleanReply=false; break;
               case 'D': sprintf(reply,"%ld",(long)round(AXIS2_LIMIT_MAX)); booleanReply=false; break;
-              case 'E': 
+              case 'E':
                 // coordinate mode for getting and setting RA/Dec
                 // 0 = OBSERVED_PLACE
                 // 1 = TOPOCENTRIC (does refraction)
@@ -987,6 +1014,22 @@ void processCommands() {
               case 'B': cli(); temp=(long)(trackingTimerRateAxis1*1000.0); sei(); sprintf(reply,"%ld",temp); booleanReply=false; break;       // DebugB, trackingTimerRateAxis1
               case 'C': sprintf(reply,"%ldus",average_loop_time); booleanReply=false; break;                                                  // DebugC, Workload average
               case 'E': double ra, de; cli(); getEqu(&ra,&de,false); sei(); sprintf(reply,"%f,%f",ra,de); booleanReply=false; break;          // DebugE, equatorial coordinates degrees (no division by 15)
+#if DEBUG != OFF                                                                                               // DebugF, EEPROM dump to DebugSer
+              case 'F':
+                for (int x=0; x <= E2END+16; x++) {
+                  if (x < 8 || x > E2END+8) {
+                    if (x%8 == 0) DF("-----------");
+                    DF("--");
+                    if (x%8 == 7) DL();
+                  } else {
+                    if (x%8 == 0) { DF(":SXFF,"); char s[8]; sprintf(s,"%04d=",x/8); D(s); }
+                    int v=nv.read(x-8);
+                    if (v < 16) D(0); DebugSer.print(v,HEX);
+                    if (x%8 == 7) DL("#");
+                  }
+                }
+              break;
+#endif
               default:  commandError=CE_CMD_UNKNOWN;
             }
           } else
@@ -1301,7 +1344,7 @@ void processCommands() {
 //              3=controller in standby
 //              4=mount is parked
 //              5=Goto in progress
-//              6=outside limits (AXIS2_LIMIT_MAX, AXIS2_LIMIT_MIN, AXIS1_LIMIT_UNDER_POLE, MERIDIAN_E/W)
+//              6=outside limits (AXIS2_LIMIT_MAX, AXIS2_LIMIT_MIN, AXIS1_LIMIT_MIN/MAX, MERIDIAN_E/W)
 //              7=hardware fault
 //              8=already in motion
 //              9=unspecified error
@@ -1590,7 +1633,7 @@ void processCommands() {
           if (parameter[0] == '-') longitude=-longitude;
           if (longitude >= -180.0 && longitude <= 360.0) {
             if (longitude >= 180.0) longitude-=360.0;
-            nv.writeFloat(EE_sites+(currentSite)*25+4,longitude);
+            nv.writeFloat(EE_sites+currentSite*25+4,longitude);
           } else commandError=CE_PARAM_RANGE;
         } else commandError=CE_PARAM_FORM;
         updateLST(jd2last(JD,UT1,false));
@@ -1613,7 +1656,7 @@ void processCommands() {
             if (i >= -24 && i <= 24) {
               if (i<0) timeZone=i-f; else timeZone=i+f;
               b=encodeTimeZone(timeZone)+128;
-              nv.update(EE_sites+(currentSite)*25+8,b);
+              nv.update(EE_sites+currentSite*25+8,b);
               updateLST(jd2last(JD,UT1,true));
             } else commandError=CE_PARAM_RANGE;
           } else commandError=CE_PARAM_FORM;
@@ -1775,14 +1818,14 @@ void processCommands() {
               booleanReply=false;
               if (!isSlewing()) {
                 switch (parameter[3]) {
-                  case '5': maxRate=(double)MaxRateBaseActual*(16.0*2.0); break; // 50%
-                  case '4': maxRate=(double)MaxRateBaseActual*(16.0*1.5); break; // 75%
-                  case '3': maxRate=(double)MaxRateBaseActual*(16.0*1.0); break; // 100%
-                  case '2': maxRate=(double)MaxRateBaseActual*(16.0/1.5); break; // 150%
-                  case '1': maxRate=(double)MaxRateBaseActual*(16.0/2.0); break; // 200%
-                  default:  maxRate=(double)MaxRateBaseActual*16.0;
+                  case '5': maxRate=MaxRateBaseActual*(16.0*2.0); break; // 50%
+                  case '4': maxRate=MaxRateBaseActual*(16.0*1.5); break; // 75%
+                  case '3': maxRate=MaxRateBaseActual*(16.0*1.0); break; // 100%
+                  case '2': maxRate=MaxRateBaseActual*(16.0/1.5); break; // 150%
+                  case '1': maxRate=MaxRateBaseActual*(16.0/2.0); break; // 200%
+                  default:  maxRate=MaxRateBaseActual*16.0;
                 }
-                if (maxRate<maxRateLowerLimit()) maxRate=maxRateLowerLimit();
+                if (maxRate < maxRateLowerLimit()) maxRate=maxRateLowerLimit();
 
                 nv.writeLong(EE_maxRateL,maxRate);
                 setAccelerationRates(maxRate);
@@ -1855,6 +1898,26 @@ void processCommands() {
               } else commandError=CE_PARAM_RANGE;
               break;
             default: commandError=CE_CMD_UNKNOWN;
+          }
+        } else
+#endif
+#if DEBUG != OFF
+        if (parameter[0] == 'F') { // Fn: Debug
+          switch (parameter[1]) {  // DebugF, EEPROM upload
+            case 'F':
+              if (strlen(parameter) != 24) { commandError=CE_CMD_UNKNOWN; break; }
+              char s[5]; s[0]=parameter[3]; s[1]=parameter[4]; s[2]=parameter[5]; s[3]=parameter[6]; s[4]=0;
+              long base=(atoi(s)-1)*8;
+              int rec[8];
+              for (int i=0; i<8; i++) {
+                const char ss[17] = "0123456789ABCDEF";
+                if (!strchr(ss,parameter[i*2+8]) || !strchr(ss,parameter[i*2+9])) { commandError=CE_PARAM_RANGE; break; }
+                int h=parameter[i*2+8]-'0'; if (h > 9) h-=7;
+                int l=parameter[i*2+9]-'0'; if (l > 9) l-=7;
+                rec[i]=h*16+l;
+              }
+              for (int i=0; i<8; i++) nv.write(base+i,rec[i]);
+            break;
           }
         } else
 #endif
@@ -2053,10 +2116,15 @@ void processCommands() {
       if (command[0] == 'W') {
         if (command[1] >= '0' && command[1] <= '3' && parameter[0] == 0) {
           currentSite=command[1]-'0'; nv.update(EE_currentSite,currentSite); booleanReply=false;
-          setLatitude(nv.readFloat(EE_sites+(currentSite*25+0)));
-          longitude=nv.readFloat(EE_sites+(currentSite*25+4));
-          timeZone=nv.read(EE_sites+(currentSite)*25+8)-128;
+          double f=nv.readFloat(EE_sites+currentSite*25+0);
+          if (f < -90 || f > 90) { f=0.0; DLF("ERR, processCommands(): bad NV latitude"); }
+          setLatitude(f);
+          longitude=nv.readFloat(EE_sites+currentSite*25+4);
+          if (longitude < -360 || longitude > 360) { longitude=0.0; DLF("ERR, processCommands(): bad NV longitude"); }
+          timeZone=nv.read(EE_sites+currentSite*25+8)-128;
           timeZone=decodeTimeZone(timeZone);
+          if (timeZone < -12 || timeZone > 14) { timeZone=0.0; DLF("ERR, processCommands(): bad NV timeZone"); }
+          updateLST(jd2last(JD,UT1,false));
         } else 
         if (command[1] == '?') {
           booleanReply=false;
@@ -2072,7 +2140,7 @@ void processCommands() {
       }
 
       if (process_command == COMMAND_SERIAL_A) {
-        if (commandError != CE_NULL) cmdA.lastError=commandError;
+        if (commandError != CE_NULL) { cmdA.lastError=commandError; logErrors("MSG: CMD_CH_A",command,parameter,commandError); }
         if (strlen(reply) > 0 || cmdA.checksum) {
           if (cmdA.checksum)  { checksum(reply); strcat(reply,cmdA.getSeq()); supress_frame=false; }
           if (!supress_frame) strcat(reply,"#");
@@ -2082,7 +2150,7 @@ void processCommands() {
 
 #ifdef HAL_SERIAL_B_ENABLED
       if (process_command == COMMAND_SERIAL_B) {
-        if (commandError != CE_NULL) cmdB.lastError=commandError;
+        if (commandError != CE_NULL) { cmdB.lastError=commandError; logErrors("MSG: CMD_CH_B",command,parameter,commandError); }
         if (strlen(reply) > 0 || cmdB.checksum) {
           if (cmdB.checksum)  { checksum(reply); strcat(reply,cmdB.getSeq()); supress_frame=false; }
           if (!supress_frame) strcat(reply,"#");
@@ -2094,7 +2162,7 @@ void processCommands() {
 
 #ifdef HAL_SERIAL_C_ENABLED
       if (process_command == COMMAND_SERIAL_C) {
-        if (commandError != CE_NULL) cmdC.lastError=commandError;
+        if (commandError != CE_NULL) { cmdC.lastError=commandError; logErrors("MSG: CMD_CH_C",command,parameter,commandError); }
         if (strlen(reply) > 0 || cmdC.checksum) {
           if (cmdC.checksum)  { checksum(reply); strcat(reply,cmdC.getSeq()); supress_frame=false; }
           if (!supress_frame) strcat(reply,"#");
@@ -2103,9 +2171,31 @@ void processCommands() {
       } else
 #endif
 
+#ifdef HAL_SERIAL_D_ENABLED
+      if (process_command == COMMAND_SERIAL_D) {
+        if (commandError != CE_NULL) { cmdD.lastError=commandError; logErrors("MSG: CMD_CH_D",command,parameter,commandError); }
+        if (strlen(reply) > 0 || cmdD.checksum) {
+          if (cmdD.checksum)  { checksum(reply); strcat(reply,cmdD.getSeq()); supress_frame=false; }
+          if (!supress_frame) strcat(reply,"#");
+          SerialD.print(reply);
+        }
+      } else
+#endif
+
+#ifdef HAL_SERIAL_E_ENABLED
+      if (process_command == COMMAND_SERIAL_E) {
+        if (commandError != CE_NULL) { cmdE.lastError=commandError; logErrors("MSG: CMD_CH_E",command,parameter,commandError); }
+        if (strlen(reply) > 0 || cmdE.checksum) {
+          if (cmdE.checksum)  { checksum(reply); strcat(reply,cmdE.getSeq()); supress_frame=false; }
+          if (!supress_frame) strcat(reply,"#");
+          SerialE.print(reply);
+        }
+      } else
+#endif
+
 #if ST4_HAND_CONTROL == ON && ST4_INTERFACE != OFF
       if (process_command == COMMAND_SERIAL_ST4) {
-        if (commandError != CE_NULL) cmdST4.lastError=commandError;
+        if (commandError != CE_NULL) { cmdST4.lastError=commandError; logErrors("MSG: CMD_CH_ST4",command,parameter,commandError); }
         if (strlen(reply) > 0 || cmdST4.checksum) {
           if (cmdST4.checksum)  { checksum(reply); strcat(reply,cmdST4.getSeq()); supress_frame=false; }
           if (!supress_frame) strcat(reply,"#");
@@ -2115,7 +2205,7 @@ void processCommands() {
 #endif
 
       if (process_command == COMMAND_SERIAL_X) {
-        if (commandError != CE_NULL) cmdX.lastError=commandError;
+        if (commandError != CE_NULL) { cmdX.lastError=commandError; logErrors("MSG: CMD_CH_X",command,parameter,commandError); }
         if (strlen(reply) > 0 || cmdX.checksum) {
           if (cmdX.checksum)  { checksum(reply); strcat(reply,cmdX.getSeq()); supress_frame=false; }
           if (!supress_frame) strcat(reply,"#");
@@ -2129,11 +2219,9 @@ void processCommands() {
 
 // stops all fast motion
 void stopSlewing() {
-  if (parkStatus == NotParked || parkStatus == Parking) {
-    stopGuideAxis1();
-    stopGuideAxis2();
-    if (trackingState == TrackingMoveTo) if (!abortSlew) abortSlew=StartAbortSlew;
-  }
+  stopGuideAxis1();
+  stopGuideAxis2();
+  if (trackingState == TrackingMoveTo) if (!abortSlew) abortSlew=StartAbortSlew;
 }
 
 // stops everything if slewing or tracking breaks the limit, just stops Dec axis if guiding breaks the limit
@@ -2141,7 +2229,12 @@ void decMinLimit() {
   if (trackingState == TrackingMoveTo) { if (!abortSlew) abortSlew=StartAbortSlew; trackingState = TrackingNone; } else {
     if (getInstrPierSide() == PierSideWest && guideDirAxis2 == 'n' ) guideDirAxis2='b'; else
     if (getInstrPierSide() == PierSideEast && guideDirAxis2 == 's' ) guideDirAxis2='b'; else
-    if (guideDirAxis2 == 0 && generalError != ERR_DEC) trackingState = TrackingNone;
+    if (guideDirAxis2 == 0 && generalError != ERR_DEC) {
+      if (trackingState != TrackingNone) {
+        trackingState=TrackingNone;
+        DLF("WRN, decMinLimit(): Limit exceeded tracking/slewing stopped");
+      }
+    }
   }
 }
 
@@ -2150,7 +2243,12 @@ void decMaxLimit() {
   if (trackingState == TrackingMoveTo) { if (!abortSlew) abortSlew=StartAbortSlew; trackingState = TrackingNone; } else {
     if (getInstrPierSide() == PierSideWest && guideDirAxis2 == 's' ) guideDirAxis2='b'; else
     if (getInstrPierSide() == PierSideEast && guideDirAxis2 == 'n' ) guideDirAxis2='b'; else
-    if (guideDirAxis2 == 0 && generalError != ERR_DEC) trackingState = TrackingNone;
+    if (guideDirAxis2 == 0 && generalError != ERR_DEC) {
+      if (trackingState != TrackingNone) {
+        trackingState=TrackingNone;
+        DLF("WRN, decMaxLimit(): Limit exceeded tracking/slewing stopped");
+      }
+    }
   }
 }
 
@@ -2159,15 +2257,24 @@ void stopLimit() {
   if (trackingState == TrackingMoveTo) {
     if (!abortSlew) abortSlew=StartAbortSlew;
   } else {
-    trackingState=TrackingNone;
-    if (spiralGuide) stopGuideSpiral();
+    if (spiralGuide) stopGuideSpiral(); else {
+      if (trackingState != TrackingNone) {
+        trackingState=TrackingNone;
+        DLF("WRN, stopLimit(): Limit exceeded tracking/goto stopped");
+      }
+    }
   }
 }
 
 // stops all motion including guiding
 void hardLimit() {
   stopSlewing();
-  if (trackingState != TrackingMoveTo) trackingState=TrackingNone;
+  if (trackingState != TrackingMoveTo) {
+    if (trackingState != TrackingNone) {
+      trackingState=TrackingNone;
+      DLF("WRN, hardLimit(): Limit exceeded tracking/slewing stopped");
+    }
+  }
 }
 
 // calculate the checksum and add to string
@@ -2203,4 +2310,9 @@ bool cmdReply(char *s) {
   if (_replyX[0] == 0) return false;
   strcpy(s,_replyX); _replyX[0]=0;
   return true;
+}
+
+void logErrors(const char ch[], char cmd[], char param[], CommandErrors cmdErr) {
+  if (cmdErr <= CE_0) return;
+  V(ch); V(" \""); V(cmd); V(param); V("\", Error "); VL(commandErrorStr[cmdErr]);
 }

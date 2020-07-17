@@ -8,6 +8,8 @@ CommandErrors setPark() {
   if (isSlewing())                      return CE_MOUNT_IN_MOTION;
   if (faultAxis1 || faultAxis2)         return CE_SLEW_ERR_HARDWARE_FAULT;
 
+  VLF("MSG: Setting park position");
+
   lastTrackingState=trackingState;
   trackingState=TrackingNone;
 
@@ -24,6 +26,7 @@ CommandErrors setPark() {
 
   trackingState=lastTrackingState;
   
+  VLF("MSG: Setting park done");
   return CE_NONE;
 }
 
@@ -60,6 +63,7 @@ CommandErrors park() {
   double parkTargetAxis1=nv.readFloat(EE_posAxis1);
   double parkTargetAxis2=nv.readFloat(EE_posAxis2);
   int parkPierSide=nv.read(EE_pierSide);
+  if (parkPierSide != PierSideNone && parkPierSide != PierSideEast && parkPierSide != PierSideWest) { parkPierSide=PierSideNone; DLF("ERR, park(): bad NV parkPierSide"); }
 
   // now, goto this target coordinate
   e=goTo(parkTargetAxis1,parkTargetAxis2,parkTargetAxis1,parkTargetAxis2,parkPierSide);
@@ -67,8 +71,10 @@ CommandErrors park() {
     trackingState=abortTrackingState; // resume tracking state
     parkStatus=lastParkStatus;        // revert the park status
     nv.write(EE_parkStatus,parkStatus);
+    
+    VLF("ERR, park(): Failed to start parking");
     return e;
-  }
+  } else { VLF("MSG: Parking started"); }
   return CE_NONE;
 }
 
@@ -77,10 +83,11 @@ void parkFinish() {
   if (parkStatus != ParkFailed) {
     // success, we're parked
     parkStatus=Parked; nv.write(EE_parkStatus,parkStatus);
-  
     // store the pointing model
     saveAlignModel();
-  }
+    
+    VLF("MSG: Parking done");
+  } else { DLF("ERR, parkFinish(): Parking failed"); }
   
   disableStepperDrivers();
 }
@@ -114,51 +121,56 @@ bool doParkClearBacklash(int phase) {
     timeout=(unsigned long)millis()+10000UL; // set timeout in 10s
     return true;
   }
-  // wait until done or timed out
   if (phase == 2) {
+    // wait until done or timed out
     cli(); if ((posAxis1 == (long)targetAxis1.part.m) && (posAxis2 == (long)targetAxis2.part.m) && !inbacklashAxis1 && !inbacklashAxis2) { sei(); return true; }  sei();
-    if ((long)(millis()-timeout) > 0) { failed=true; return true; } else return false;
+    if ((long)(millis()-timeout) > 0) { failed=true; DLF("ERR, doParkClearBacklash(): Timeout finding nearest position"); return true; } else return false;
   }
   if (phase == 3) {
     // start by moving fully into the backlash
     cli(); targetAxis1.part.m += 1; targetAxis2.part.m += 1; sei();
-    timeout=(unsigned long)millis()+10000UL; // set timeout in 10s
+    timeout=(unsigned long)millis()+10000UL;
     return true;
   }
-  // wait until done or timed out
   if (phase == 4) {
+    // wait until done or timed out
     cli(); if ((posAxis1 == (long)targetAxis1.part.m) && (posAxis2 == (long)targetAxis2.part.m) && !inbacklashAxis1 && !inbacklashAxis2) { sei(); return true; }  sei();
-    if ((long)(millis()-timeout) > 0) { failed=true; return true; } else return false;
+    if ((long)(millis()-timeout) > 0) { failed=true; DLF("ERR, doParkClearBacklash(): Timeout moving into BL"); return true; } else return false;
   }
   if (phase == 5) {
     // then reverse direction and take it all up
     cli(); targetAxis1.part.m -= 1; targetAxis2.part.m -= 1; sei();
-    timeout=(unsigned long)millis()+10000UL; // set timeout in 10s
+    timeout=(unsigned long)millis()+10000UL;
     return true;
   }
-  // wait until done or timed out
   if (phase == 6) {
-    cli(); if ((posAxis1 == (long)targetAxis1.part.m) && (posAxis2 == (long)targetAxis2.part.m) && !inbacklashAxis1 && !inbacklashAxis2) { sei(); return true; } sei();
-    if ((long)(millis()-timeout) > 0) { failed=true; return true; } else return false;
+    // wait until done or timed out
+    cli(); if (posAxis1 == (long)targetAxis1.part.m && posAxis2 == (long)targetAxis2.part.m && !inbacklashAxis1 && !inbacklashAxis2) { sei(); return true; } sei();
+    if ((long)(millis()-timeout) > 0) { failed=true; DLF("ERR, doParkClearBacklash(): Timeout moving out of BL"); return true; } else return false;
   }
-  // we arrive back at the exact same position so targetAxis1/targetAxis2 don't need to be touched
   if (phase == 7) {
+    // double check to be sure backlash is zero
+    cli(); if (blAxis1 != 0 || blAxis2 != 0) { sei(); failed=true; DLF("ERR, doParkClearBacklash(): Non-zero BL"); } else sei();
+    return true;
+  }
+  if (phase == 8) {
     // return true on success
-    cli(); if ((blAxis1 != 0) || (blAxis2 != 0) || (posAxis1 != (long)targetAxis1.part.m) || (posAxis2 != (long)targetAxis2.part.m) || failed) { sei(); return false; } else { sei(); return true; }
+    return !failed;
   }
   return false;
 }
 
 int parkClearBacklash() {
   static int phase=1;
-  if (phase == 1) { if (doParkClearBacklash(1)) phase++; } else
+  if (phase == 1) { if (doParkClearBacklash(1)) phase++; VLF("MSG: Clearing BL"); } else
   if (phase == 2) { if (doParkClearBacklash(2)) phase++; } else
   if (phase == 3) { if (doParkClearBacklash(3)) phase++; } else
   if (phase == 4) { if (doParkClearBacklash(4)) phase++; } else
   if (phase == 5) { if (doParkClearBacklash(5)) phase++; } else
   if (phase == 6) { if (doParkClearBacklash(6)) phase++; } else
-  if (phase == 7) { phase=1; if (doParkClearBacklash(7)) return 1; else return 0; }
-  return -1;
+  if (phase == 7) { if (doParkClearBacklash(7)) phase++; } else
+  if (phase == 8) { phase=1; if (doParkClearBacklash(8)) { VLF("MSG: Clearing BL done"); return PCB_SUCCESS; } else { DLF("ERR, parkClearBacklash(): Failure"); return PCB_FAILURE; } }
+  return PCB_BUSY;
 }
 
 // returns a parked telescope to operation, you must set date and time before calling this.  it also
@@ -171,6 +183,8 @@ CommandErrors unPark(bool withTrackingOn) {
 #endif
   if (isSlewing())                      return CE_MOUNT_IN_MOTION;
   if (faultAxis1 || faultAxis2)         return CE_SLEW_ERR_HARDWARE_FAULT;
+
+  VLF("MSG: Un-Parking");
 
   initStartupValues();
 
@@ -193,6 +207,8 @@ CommandErrors unPark(bool withTrackingOn) {
 
   // get suggested park position
   int parkPierSide=nv.read(EE_pierSide);
+  if (parkPierSide != PierSideNone && parkPierSide != PierSideEast && parkPierSide != PierSideWest) { parkPierSide=PierSideNone; DLF("ERR, unPark(): bad NV parkPierSide"); }
+
   setTargetAxis1(nv.readFloat(EE_posAxis1),parkPierSide);
   setTargetAxis2(nv.readFloat(EE_posAxis2),parkPierSide);
 
@@ -223,8 +239,12 @@ CommandErrors unPark(bool withTrackingOn) {
 
     // get PEC status
     pecStatus  =nv.read(EE_pecStatus);
+    if (pecStatus < PEC_STATUS_FIRST || pecStatus > PEC_STATUS_LAST) { pecStatus=IgnorePEC; DLF("ERR, unPark(): bad NV pecStatus"); }
+    
     pecRecorded=nv.read(EE_pecRecorded); if (!pecRecorded) pecStatus=IgnorePEC;
+    if (pecRecorded != true && pecRecorded != false) { pecRecorded=false; DLF("ERR, unPark(): bad NV pecRecorded"); }
   }
+  VLF("MSG: Un-Parking done");
   return CE_NONE;
 }
 
@@ -244,8 +264,12 @@ boolean loadAlignModel() {
   // get align/corrections
   indexAxis1=nv.readFloat(EE_indexAxis1);
   indexAxis1Steps=(long)(indexAxis1*(double)AXIS1_STEPS_PER_DEGREE);
+  if (indexAxis1 < -720 || indexAxis1 > 720) { indexAxis1=0; DL("ERR, loadAlignModel(): bad NV indexAxis1"); }
+  
   indexAxis2=nv.readFloat(EE_indexAxis2);
   indexAxis2Steps=(long)(indexAxis2*(double)AXIS2_STEPS_PER_DEGREE);
+  if (indexAxis2 < -720 || indexAxis2 > 720) { indexAxis2=0; DL("ERR, loadAlignModel(): bad NV indexAxis2"); }
+  
   Align.readCoe();
   return true;
 }

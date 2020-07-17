@@ -16,21 +16,23 @@ TinyGPSPlus gps;
   #error "Configuration (Config.h): Setting TLS GPS, requires adding a line to identify the serial port '#define SerialGPS Serial6' for example."
 #endif
 #ifndef SerialGPSBaud
-  #define SerialGPSBaud 9600
+  #define SerialGPSBaud 4800
 #endif
 
 class timeLocationSource {
   public:
     bool active=false;
+    bool serialActive=false;
 
     // initialize
     bool init() {
-      SerialGPS.begin(SerialGPSBaud);
       active=false;
+      serialActive=false;
       return active;
     }
 
     boolean poll() {
+      if (!serialActive) { SerialGPS.begin(SerialGPSBaud); serialActive=true; }
       if (gps.location.isValid() && siteIsValid() && gps.date.isValid() && gps.time.isValid() && timeIsValid()) { active=true; return true; }
       while (SerialGPS.available() > 0) gps.encode(SerialGPS.read());
       return false;
@@ -65,8 +67,8 @@ class timeLocationSource {
       if (!active) return;
       if (!siteIsValid()) return;
 
-      LAT=gps.location.lat();
-      LONG=gps.location.lng();
+      LAT =gps.location.lat();
+      LONG=-gps.location.lng();
     }
 };
 

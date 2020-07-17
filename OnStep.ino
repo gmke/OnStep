@@ -40,45 +40,57 @@
 // firmware info, these are returned by the ":GV?#" commands
 #define FirmwareDate          __DATE__
 #define FirmwareVersionMajor  4
-#define FirmwareVersionMinor  8       // minor version 0 to 99
-#define FirmwareVersionPatch  "a"     // for example major.minor patch: 1.3c
+#define FirmwareVersionMinor  10      // minor version 0 to 99
+#define FirmwareVersionPatch  "e"     // for example major.minor patch: 1.3c
 #define FirmwareVersionConfig 3       // internal, for tracking configuration file changes
 #define FirmwareName          "On-Step"
 #define FirmwareTime          __TIME__
 
+#include "Constants.h"
+
 // On first upload OnStep automatically initializes a host of settings in nv memory (EEPROM.)
 // This option forces that initialization again.
-// Change to true, upload OnStep and nv will be reset to default. Then immediately set to false and upload again.
+// Change to ON, upload OnStep and nv will be reset to default. Then immediately set to OFF and upload again.
 // *** IMPORTANT: This option must not be left set to true or it will cause excessive wear of EEPROM or FLASH ***
-#define NV_INIT_KEY_RESET false
+#define NV_INIT_KEY_RESET OFF
+
+// Enable additional debugging and/or status messages on the specified DebugSer port
+// Note that the DebugSer port cannot be used for normal communication with OnStep
+#define DEBUG OFF             // default=OFF, use "DEBUG ON" for background errors only, use "DEBUG VERBOSE" for all errors and status messages
+#define DebugSer SerialA      // default=SerialA, or Serial4 for example (always 9600 baud)
 
 #include <errno.h>
 #include <math.h>
 
-#include "Constants.h"
 #include "src/sd_drivers/Models.h"
 #include "Config.h"
 #include "src/pinmaps/Models.h"
 #include "src/HAL/HAL.h"
 #include "Validate.h"
 
-// Enable debugging messages on DebugSer -------------------------------------------------------------
-#define DEBUG_OFF             // default=_OFF, use "DEBUG_ON" to activate
-#define DebugSer SerialA      // default=SerialA, or SerialB for example (always 9600 baud)
-
 // Helper macros for debugging, with less typing
-#if defined(DEBUG_ON)
+#if DEBUG != OFF
   #define D(x)       DebugSer.print(x)
-  #define DH(x)      DebugSer.print(x,HEX)
+  #define DF(x)      DebugSer.print(F(x))
   #define DL(x)      DebugSer.println(x)
-  #define DHL(x,y)   DebugSer.println(x,HEX)
+  #define DLF(x)     DebugSer.println(F(x))
 #else
   #define D(x)
-  #define DH(x,y)
+  #define DF(x)
   #define DL(x)
-  #define DHL(x,y)
+  #define DLF(x)
 #endif
-
+#if DEBUG == VERBOSE
+  #define V(x)        DebugSer.print(x)
+  #define VF(x)       DebugSer.print(F(x))
+  #define VL(x)       DebugSer.println(x)
+  #define VLF(x)      DebugSer.println(F(x))
+#else
+  #define V(x)
+  #define VF(x)
+  #define VL(x)
+  #define VLF(x)
+#endif
 // ---------------------------------------------------------------------------------------------------
 
 #include "src/lib/St4SerialMaster.h"
@@ -157,15 +169,19 @@ void setup() {
   // take a half-second to let any connected devices come up before we start setting up pins
   delay(500);
 
-#ifdef DEBUG_ON
+#if DEBUG != OFF
   // Initialize USB serial debugging early, so we can use DebugSer.print() for debugging, if needed
   DebugSer.begin(9600);
   delay(5000);
 #endif
+
+  VF("MSG: OnStep "); V(FirmwareVersionMajor); V("."); V(FirmwareVersionMinor); VL(FirmwareVersionPatch);
   
   // Call hardware specific initialization
+  VLF("MSG: Init HAL");
   HAL_Init();
 
+  VLF("MSG: Init serial");
   SerialA.begin(SERIAL_A_BAUD_DEFAULT);
 #ifdef HAL_SERIAL_B_ENABLED
   #ifdef SERIAL_B_RX
@@ -177,6 +193,12 @@ void setup() {
 #ifdef HAL_SERIAL_C_ENABLED
   SerialC.begin(SERIAL_C_BAUD_DEFAULT);
 #endif
+#ifdef HAL_SERIAL_D_ENABLED
+  SerialD.begin(SERIAL_D_BAUD_DEFAULT);
+#endif
+#ifdef HAL_SERIAL_E_ENABLED
+  SerialE.begin(SERIAL_E_BAUD_DEFAULT);
+#endif
 #if ST4_HAND_CONTROL == ON && ST4_INTERFACE != OFF
   SerialST4.begin();
 #endif
@@ -185,6 +207,7 @@ void setup() {
   delay(2000);
 
   // initialize the Non-Volatile Memory
+  VLF("MSG: Init NV");
   if (!nv.init()) {
     while (true) {
       SerialA.print("NV (EEPROM) failure!#\r\n");
@@ -198,10 +221,12 @@ void setup() {
   }
 
   // initialize the Object Library
+  VLF("MSG: Init library/catalogs");
   Lib.init();
 
   // prepare PEC buffer
 #if MOUNT_TYPE != ALTAZM
+  VLF("MSG: Init PEC");
   createPecBuffer();
 #endif
 
@@ -212,24 +237,30 @@ void setup() {
   initPins();
 
   // get guiding ready
+  VLF("MSG: Init guiding");
   initGuide();
 
   // if this is the first startup set EEPROM to defaults
   initWriteNvValues();
   
   // get weather monitoring ready to go
+  VLF("MSG: Init weather");
   if (!ambient.init()) generalError=ERR_WEATHER_INIT;
 
   // setup features
 #ifdef FEATURES_PRESENT
+  VLF("MSG: Init auxiliary features");
   featuresInit();
 #endif
 
   // get the TLS ready (if present)
+  VLF("MSG: Init TLS");
   if (!tls.init()) generalError=ERR_SITE_INIT;
   
   // this sets up the sidereal timer and tracking rates
+  VLF("MSG: Init sidereal timer");
   siderealInterval=nv.readLong(EE_siderealInterval); // the number of 16MHz clocks in one sidereal second (this is scaled to actual processor speed)
+  if (siderealInterval < 14360682L || siderealInterval > 17551944L) { siderealInterval=15956313L; DLF("ERR, setup(): bad NV siderealInterval"); }
   SiderealRate=siderealInterval/StepsPerSecondAxis1;
   timerRateAxis1=SiderealRate;
   timerRateAxis2=SiderealRate;
@@ -240,6 +271,7 @@ void setup() {
   timerRateBacklashAxis2=(SiderealRate/TRACK_BACKLASH_RATE)*timerRateRatio;
 
   // now read any saved values from EEPROM into varaibles to restore our last state
+  VLF("MSG: NV getting run-time settings");
   initReadNvValues();
 
   // starts the hardware timers that keep sidereal time, move the motors, etc.
@@ -250,6 +282,7 @@ void setup() {
   // tracking autostart
 #if TRACK_AUTOSTART == ON
   #if MOUNT_TYPE != ALTAZM
+    VLF("MSG: Tracking autostart");
 
     // tailor behaviour depending on TLS presence
     if (!tls.active) {
@@ -276,6 +309,7 @@ void setup() {
   #if AXIS3_DRIVER_REVERSE == ON
     rot.setReverseState(HIGH);
   #endif
+  VLF("MSG: Init rotator");
   rot.setDisableState(AXIS3_DRIVER_DISABLE);
   
   #if AXIS3_DRIVER_MODEL == TMC_SPI
@@ -301,6 +335,7 @@ void setup() {
   #if AXIS4_DRIVER_REVERSE == ON
     foc1.setReverseState(HIGH);
   #endif
+  VLF("MSG: Init focuser1");
   foc1.setDisableState(AXIS4_DRIVER_DISABLE);
 
   #if AXIS4_DRIVER_MODEL == TMC_SPI
@@ -325,6 +360,7 @@ void setup() {
   #if AXIS5_DRIVER_REVERSE == ON
     foc2.setReverseState(HIGH);
   #endif
+  VLF("MSG: Init focuser2");
   foc2.setDisableState(AXIS5_DRIVER_DISABLE);
 
   #if AXIS5_DRIVER_MODEL == TMC_SPI
@@ -341,19 +377,33 @@ void setup() {
 #endif
 
   // finally clear the comms channels
+  VLF("MSG: Serial buffer flush");
   delay(500);
   SerialA.flush();
+  while (SerialA.available()) SerialA.read();
 #ifdef HAL_SERIAL_B_ENABLED
   SerialB.flush();
+  while (SerialB.available()) SerialB.read();
 #endif
 #ifdef HAL_SERIAL_C_ENABLED
   SerialC.flush();
+  while (SerialC.available()) SerialC.read();
+#endif
+#ifdef HAL_SERIAL_D_ENABLED
+  SerialD.flush();
+  while (SerialD.available()) SerialD.read();
+#endif
+#ifdef HAL_SERIAL_E_ENABLED
+  SerialE.flush();
+  while (SerialE.available()) SerialE.read();
 #endif
   delay(500);
 
   // prep counters (for keeping time in main loop)
   cli(); siderealTimer=lst; guideSiderealTimer=lst; PecSiderealTimer=lst; sei();
   last_loop_micros=micros();
+
+  VLF("MSG: OnStep is ready"); VL("");
 }
 
 void loop() {
@@ -442,7 +492,7 @@ void loop2() {
         // It is still low, there must be a problem
         generalError=ERR_LIMIT_SENSE;
         stopLimit();
-      }
+      } 
     }
 #endif
 
@@ -482,14 +532,26 @@ void loop2() {
 
     // 0.01S POLLING -------------------------------------------------------------------------------------
 #if TIME_LOCATION_SOURCE == GPS
-    if (!tls.active && tls.poll()) {
+    if ((PPS_SENSE == OFF || PPSsynced) && !tls.active && tls.poll()) {
+      SerialGPS.end();
+      currentSite=0; nv.update(EE_currentSite,currentSite);
+
       tls.getSite(latitude,longitude);
       tls.get(JD,LMT);
+
+      timeZone=nv.read(EE_sites+currentSite*25+8)-128;
+      timeZone=decodeTimeZone(timeZone);
       UT1=LMT+timeZone;
+
+      nv.writeString(EE_sites+currentSite*25+9,(char*)"GPS");
+      setLatitude(latitude);
+      nv.writeFloat(EE_sites+currentSite*25+4,longitude);
       updateLST(jd2last(JD,UT1,false));
+
+      if (generalError == ERR_SITE_INIT) generalError=ERR_NONE;
+
       dateWasSet=true;
       timeWasSet=true;
-      if (generalError == ERR_SITE_INIT) generalError=ERR_NONE;
     }
 #endif
 
@@ -548,16 +610,16 @@ void loop2() {
 
 #if PPS_SENSE != OFF
     // update clock via PPS
-    if (trackingState == TrackingSidereal) {
       cli();
       PPSrateRatio=((double)1000000.0/(double)(PPSavgMicroS));
       if ((long)(micros()-(PPSlastMicroS+2000000UL)) > 0) PPSsynced=false; // if more than two seconds has ellapsed without a pulse we've lost sync
       sei();
   #if LED_STATUS2 == ON
+    if (trackingState == TrackingSidereal) {
       if (PPSsynced) { if (led2On) { digitalWrite(LEDneg2Pin,HIGH); led2On=false; } else { digitalWrite(LEDneg2Pin,LOW); led2On=true; } } else { digitalWrite(LEDneg2Pin,HIGH); led2On=false; } // indicate PPS
+    }
   #endif
       if (LastPPSrateRatio != PPSrateRatio) { SiderealClockSetInterval(siderealInterval); LastPPSrateRatio=PPSrateRatio; }
-    }
 #endif
 
 #if LED_STATUS == ON
@@ -574,7 +636,7 @@ void loop2() {
   #endif
 #endif
 
-    // SAFETY CHECKS, keeps mount from tracking past the meridian limit, past the AXIS1_LIMIT_UNDER_POLE, or past the Dec limits
+    // SAFETY CHECKS, keeps mount from tracking past the meridian limit, past the AXIS1_LIMIT_MAX, or past the Dec limits
     if (safetyLimitsOn) {
       if (meridianFlip != MeridianFlipNever) {
         if (getInstrPierSide() == PierSideWest) {
@@ -588,23 +650,24 @@ void loop2() {
         } else
         if (getInstrPierSide() == PierSideEast) {
           if (getInstrAxis1() < -degreesPastMeridianE) { generalError=ERR_MERIDIAN; stopLimit(); }
-          if (getInstrAxis1() > AXIS1_LIMIT_UNDER_POLE) { generalError=ERR_UNDER_POLE; stopLimit(); }
+          if (getInstrAxis1() > AXIS1_LIMIT_MAX) { generalError=ERR_UNDER_POLE; stopLimit(); }
         }
       } else {
 #if MOUNT_TYPE != ALTAZM
         // when Fork mounted, ignore pierSide and just stop the mount if it passes the UnderPoleLimit
-        if (getInstrAxis1() > AXIS1_LIMIT_UNDER_POLE) { generalError=ERR_UNDER_POLE; stopLimit(); }
+        if (getInstrAxis1() > AXIS1_LIMIT_MAX) { generalError=ERR_UNDER_POLE; stopLimit(); }
 #else
-        // when Alt/Azm mounted, just stop the mount if it passes AXIS1_LIMIT_MAXAZM
-        if (getInstrAxis1() > AXIS1_LIMIT_MAXAZM) { generalError=ERR_AZM; stopLimit(); }
+        // when Alt/Azm mounted, just stop the mount if it passes AXIS1_LIMIT_MAX
+        if (getInstrAxis1() > AXIS1_LIMIT_MAX) { generalError=ERR_AZM; stopLimit(); }
 #endif
       }
     }
     // check for exceeding AXIS2_LIMIT_MIN or AXIS2_LIMIT_MAX
 #if MOUNT_TYPE != ALTAZM
   #if AXIS2_TANGENT_ARM == ON
-      if (posAxis2/AXIS2_STEPS_PER_DEGREE < AXIS2_LIMIT_MIN) { generalError=ERR_DEC; decMinLimit(); } else
-      if (posAxis2/AXIS2_STEPS_PER_DEGREE > AXIS2_LIMIT_MAX) { generalError=ERR_DEC; decMaxLimit(); } else
+      cli(); double d=posAxis2/AXIS2_STEPS_PER_DEGREE; sei();
+      if (d < AXIS2_LIMIT_MIN) { generalError=ERR_DEC; decMinLimit(); } else
+      if (d > AXIS2_LIMIT_MAX) { generalError=ERR_DEC; decMaxLimit(); } else
       if (trackingState == TrackingSidereal && generalError == ERR_DEC) generalError=ERR_NONE;
   #else
       if (currentDec < AXIS2_LIMIT_MIN) { generalError=ERR_DEC; decMinLimit(); }

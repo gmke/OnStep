@@ -15,9 +15,13 @@
 // RAMPS - 3D printer shields/boards that work with OnStep, all are 5-axis designs
 #define Ramps14                     10 // Ramps v1.4 shield for Mega2560
 #define Ramps15                     10 // Ramps v1.5
-#define MksGenL                     10 // Like Ramps above but better, Mega2560 built-in, crystal oscillator, 24V support
-#define MksGenL1                    10
-#define MksGenL2                    11 // Adds SPI bus to all stepper drivers (TMC only)
+#define MksGenL                     11 // Like Ramps above but better, Mega2560 built-in, crystal oscillator, 24V support
+#define MksGenL1                    11
+#define MksGenL2                    12 // Adds SPI bus to all stepper drivers (TMC only)
+#define MksGenL21                   13 // As above except Focuser2 CS is on pin12
+
+// FYSETC S6 - 3D printer board that works with OnStep, a 6-axis design with 5-axes supported
+#define FYSETC_S6                   15
 
 // Mini - Small 2-axis design suitable for embedded or mounting behind a panel can even be built with connectors up
 #define MiniPCB                     20 // All for Teensy3.2
@@ -42,8 +46,8 @@
 // Khalid and Dave's PCB for STM32 Blue pill
 #define STM32Blue                   60
 #define STM32Black                  61
-#define FYSETC_S6                   62
-#define PINMAP_LAST                 62
+
+#define PINMAP_LAST                 61
 // ---------------------------------------------------------------------------------------------------------------------------------
 // ---------------------------------------------------------------------------------------------------------------------------------
                                    
@@ -55,6 +59,8 @@
 #define ON_PULLDOWN                -5
 #define XDIRECT                    -6
 #define AUX                        -7
+#define VERBOSE                    -8
+#define SoftwareSerial2            -9
 
 // mount types                     
 #define MOUNT_TYPE_FIRST            1

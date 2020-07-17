@@ -20,7 +20,7 @@
 // New symbols for the Serial ports so they can be remapped if necessary -----------------------------
 
 // automatically switch to built in serial
-#if FEATURE_LIST_DS == ON || defined(DEBUG_ON)
+#if FEATURE_LIST_DS == ON || DEBUG == ON || DEBUG == VERBOSE
   #define MEGA2560_ARDUINO_SERIAL_ON
 #endif
 
@@ -197,8 +197,8 @@ void PresetTimerInterval(long iv, bool TPS, volatile uint32_t *nextRate, volatil
 #define a2CS_L CLR(Axis2_M2PORT, Axis2_M2BIT)
 #define a2CLK_H SET(Axis2_M1PORT, Axis2_M1BIT)
 #define a2CLK_L CLR(Axis2_M1PORT, Axis2_M1BIT)
-#define a2SDO_H SET(Axis2_M0PORT, Axis1_M0BIT)
-#define a2SDO_L CLR(Axis2_M0PORT, Axis1_M0BIT)
+#define a2SDO_H SET(Axis2_M0PORT, Axis2_M0BIT)
+#define a2SDO_L CLR(Axis2_M0PORT, Axis2_M0BIT)
 #define a2M0(P) if (P) SET(Axis2_M0PORT, Axis2_M0BIT); else CLR(Axis2_M0PORT, Axis2_M0BIT)
 #define a2M1(P) if (P) SET(Axis2_M1PORT, Axis2_M1BIT); else CLR(Axis2_M1PORT, Axis2_M1BIT)
 #define a2M2(P) if (P) SET(Axis2_M2PORT, Axis2_M2BIT); else CLR(Axis2_M2PORT, Axis2_M2BIT)

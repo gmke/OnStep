@@ -3,47 +3,48 @@
 
 #if defined(STM32F446xx)
 
-// TX2 (PA2/PA3) is on the Y+ and Z+ end stops and is reserved for GPS (etc, no command channel is associated with this port)
+// TX2/RX2 (PA2/PA3) is on the Y+ and Z+ end stops and is reserved for GPS (etc, no command channel is associated with this port)
+// Use "#define SerialGPS SoftwareSerial2" in Config.h for the GPS only serial port
 
 // Temperature sensors (From Marlin) perhaps these would make better Limit sw and 2x home switches, and PEC.
 // They have built-in pullups and a 10uf cap for ESD but they are not labeled as such so leaving it be.
-#define Temp0Pin            PC0
-#define Temp1Pin            PC1
-#define Temp2Pin            PC2
-#define Temp3Pin            PC3
+#define Temp0Pin            PC0     // Temp0   (on TE0, THERMO0)
+#define Temp1Pin            PC1     // Temp1   (on TE1, THERMO1)
+#define Temp2Pin            PC2     // Temp2   (on TE2, THERMO2)
+#define Temp3Pin            PC3     // Temp3   (on TB , THERMO3)
 
 // Fans (From Marlin) we use for Auxiliary Features (switches etc.)  Probably with a little crafty wiring these can be 3V3 or 5V.
-#define Fan0Pin             PB0
-#define Fan1Pin             PB1
-#define Fan2Pin             PB2
+#define Fan0Pin             PB0     // Fan0    (on FAN0)
+#define Fan1Pin             PB1     // Fan1    (on FAN1)
+#define Fan2Pin             PB2     // Fan2    (on FAN2)
 
 // Heaters (From Marlin) we use for Auxiliary Features (switches, dew heaters, etc.)
-#define Heater0Pin          PB3
-#define Heater1Pin          PB4
-#define Heater2Pin         PB15
-#define Heater3Pin          PC8
+#define Heater0Pin          PB3     // Heater0 (on E0-OUT, E0-Heater)
+#define Heater1Pin          PB4     // Heater1 (on E1-OUT, E1-Heater)
+#define Heater2Pin         PB15     // Heater2 (on E2-OUT, E2-Heater)
+#define Heater3Pin          PC8     // Heater3 (on BED-OUT, Heated-Bed)
 
 // The multi-purpose pins (Aux3..Aux8 can be analog pwm/dac if supported)
 // I defined 7 Aux pins so they match up with the first 7 Auxiliary Feature slots avaliable in OnStep
 // Aux1-3 can be used for pretty much anything
 // Aux4-7 are more for dew-heaters
-#define Aux1            Fan0Pin     // Fan0
-#define Aux2            Fan1Pin     // Fan1
-#define Aux3            Fan2Pin     // Fan2
-#define Aux4         Heater0Pin     // Heater0
-#define Aux5         Heater1Pin     // Heater1
-#define Aux6         Heater2Pin     // Heater2
-#define Aux7         Heater3Pin     // Heater3
+#define Aux1            Fan0Pin
+#define Aux2            Fan1Pin
+#define Aux3            Fan2Pin
+#define Aux4         Heater0Pin
+#define Aux5         Heater1Pin
+#define Aux6         Heater2Pin
+#define Aux7         Heater3Pin
 
 // Misc. pins
 #ifndef DS3234_CS_PIN
-  #define DS3234_CS_PIN     PA4     // Default CS Pin for DS3234 on SPI (on EXP1 shared with the DS3234 CS pin)
+  #define DS3234_CS_PIN     PA4     // Default CS Pin for DS3234 on SPI (on EXP2 shared with the ESP8266 RST pin)
 #endif
 #ifndef OneWirePin
-  #define OneWirePin        PD0     // Default Pin for OneWire bus (on EXP2)
+  #define OneWirePin        PE0     // Default Pin for OneWire bus (on E2-MOT PD-EN, right hand pin)
 #endif
-#define ESP8266Gpio0Pin    PB12     // ESP8266 GPIO0 (Dir2)
-#define ESP8266RstPin       PA4     // ESP8266 RST (on EXP1 shared with the DS3234 CS pin)
+#define ESP8266Gpio0Pin     PD0     // ESP8266 GPIO0 (on EXP1)
+#define ESP8266RstPin       PA4     // ESP8266 RST (on EXP2 shared with the DS3234 CS pin)
 
 // The PEC index sense is a logic level input, resets the PEC index on rising edge then waits for 60 seconds before allowing another reset
 #define PecPin              PA1
@@ -81,7 +82,7 @@
 #define Axis2_M2           PE15     // Microstep Mode 2 or SPI CS or Decay Mode
 #define Axis2_M3            PA6     // SPI MISO
 #define Axis2_STEP          PD8     // Step
-#define Axis2_DIR          PB12     // Dir (ESP8266 GPIO0 on MaxPCB3)
+#define Axis2_DIR          PB12     // Dir
 #define Axis2_DECAY    Axis2_M2     // Decay mode
 #define Axis2_FAULT    Axis2_M3     // SPI MISO/Fault
 #define Axis2_HOME         PB13     // Sense home position Axis2 (on Y-)

@@ -6,6 +6,7 @@
 #define L_DOWNLOAD "下载"
 #define L_ACCEPT "确认"
 #define L_CONTINUE "继续"
+#define L_ARE_YOU_SURE "你确定吗"
 #define L_LOGOUT "退出"
 
 #define L_UT "格林威治时间"
@@ -35,13 +36,15 @@
 #define L_RATE "速率"
 #define L_RANGE "范围"
 #define L_UNKNOWN "未知"
+#define L_FAULT "故障"
 
 // ---------------------------- Index ----------------------------
 // date/time
 #define L_TIME_BROWSER_UT "UT (网络浏览器)"
 
 // weather
-#define L_TEMPERATURE "温度"
+#define L_TELE_TEMPERATURE "望远镜温度"
+#define L_TEMPERATURE "环境温度"
 #define L_PRESSURE "气压"
 #define L_HUMIDITY "相对湿度"
 #define L_DEW_POINT "露点温度"
@@ -81,6 +84,7 @@
 #define L_REFR_COMP_BOTH "两个轴的参考补偿"
 #define L_FULL_COMP_RA "完整的RA轴"
 #define L_FULL_COMP_BOTH "完全补偿两个轴"
+#define L_TRACKING "追踪"
 #define L_TRACKING_RATE "跟踪速度"
 #define L_CURRENT_MAXRATE "当前最大速率"
 #define L_DEFAULT_MAXRATE "标准最大速率"
@@ -98,7 +102,6 @@
 
 // misc. errors/workload
 #define L_INTERNAL_TEMP "内部控制器温度"
-#define L_CMD_ERROR_LOG "命令错误日志"
 #define L_LAST_GENERAL_ERROR "最后一个一般(背景)错误"
 #define L_WORKLOAD "工作量"
 #define L_WIRELESS_SIGNAL_STRENGTH "无线 信号强度"
@@ -224,13 +227,18 @@
 #define L_CAT_UPLOAD_LINES_WRITTEN "写的行"
 #define L_CAT_UPLOAD_SELECT_FAIL "上传失败,无法选择目录."
 #define L_CAT_UPLOAD_NO_CAT "上传失败,未选择目录."
+#define L_CAT_CLEAR "清除目录"
+#define L_CAT_CLEAR_LIB "清除图书馆"
 
 // --------------------------- Encoders --------------------------
 
 // general settings
 #define L_ENC_SYNC_TO_ENC "将OnStep同步到编码器"
 #define L_ENC_SYNC_TO_ONS "将编码器同步到OnStep"
+#define L_ENC_ZERO_TO_ONS "将绝对编码器零设置为OnStep"
 #define L_ENC_AUTO_SYNC "将OnStep自动同步到编码器"
+#define L_ENC_CONF "编码器配置"
+#define L_ENC_SET_TPD "每度数"
 #define L_ENC_MAX_ANGLE "最大角度距离（编码器与OnStep相比）"
 #define L_ENC_MAX_ANGLE_AXIS1 "（轴1，弧秒0到9999）"
 #define L_ENC_MAX_ANGLE_AXIS2 "（轴2，弧秒0到9999）"
@@ -275,7 +283,7 @@
 #define L_REFINE_POLAR_ALIGN "精确对齐极轴"
 #define L_REFINE_PA "改变停车位"
 #define L_REFINE_MESSAGE1 "赤道仪的设置和3+星的方向。在天球北极或南极附近引出一颗明亮的恒星，其偏角为50至80度（N或S）"
-#define L_REFINE_MESSAGE2 "然后按[提炼 PA]键。使用方向键将星星重新定位在目镜中."
+#define L_REFINE_MESSAGE2 "然后按[提炼 PA]键。使用方向键将星星重新定位在目镜中. "
 #define L_REFINE_MESSAGE3 "（可选）再次重新调整赤道仪."
 
 #define L_PARK "停车"
@@ -298,6 +306,8 @@
 
 // ------------------------ Configuration ------------------------
 
+#define L_BASIC_SET_TITLE "基本的:"
+
 #define L_MAX_SLEW_SPEED "最大回转速度"
 
 // goto Rate
@@ -308,23 +318,56 @@
 #define L_VFAST "更快 (2x)"
 
 // backlash
-#define L_BACKLASH_TITLE "反冲"
-#define L_BACKLASH_RANGE_AXIS1 "轴1，以弧秒为单位0到3600"
-#define L_BACKLASH_RANGE_AXIS2 "轴2，以弧秒为单位0到3600"
+#define L_BACKLASH_RANGE_AXIS1 "间隙，以弧秒为单位，0到3600"
+#define L_BACKLASH_RANGE_AXIS2 "间隙，以弧秒为单位，0到3600"
+#define L_BACKLASH_RANGE_AXIS345 "间隙，在步骤0到32767中"
+
+// deadband/TCF
+#define L_DEADBAND_RANGE_AXIS45 "TCF死区，在步骤1至32767中"
+#define L_TCF_COEF_RANGE_AXIS45 "TCF系数，以微米/度为单位。 C -999.0至999.0"
+#define L_TCF_COEF_EN_AXIS45 "TCF启用，0假或1真"
 
 // limits
-#define L_LIMITS_TITLE "限制"
+#define L_LIMITS_TITLE "范围和开销限制"
 #define L_LIMITS_RANGE_HORIZON "地平线，以+/- 30度为单位"
 #define L_LIMITS_RANGE_OVERHEAD "上限，以60到90度为单位"
-#define L_LIMITS_RANGE_MERIDIAN_E "如果将望远镜放在坐骑的东侧，则指向子午线，以+/- 180度为单位"
-#define L_LIMITS_RANGE_MERIDIAN_W "如果将望远镜放在坐骑西侧，则指向子午线，以+/- 180度为单位"
+#define L_LIMITS_RANGE_MERIDIAN_E "如果将望远镜放在坐骑的东侧，则指向子午线，以+/- 270度为单位"
+#define L_LIMITS_RANGE_MERIDIAN_W "如果将望远镜放在坐骑西侧，则指向子午线，以+/- 270度为单位"
 
 // location
-#define L_LOCATION_TITLE "坐标"
-#define L_LOCATION_LONG "经度，以度和分钟为单位。+ /-180，W为+"
-#define L_LOCATION_LAT "纬度，以度和分钟为单位。+ /-90，N为+"
-#define L_LOCATION_RANGE_UTC_OFFSET "UTC偏移，以-12到+14小时为单位"
+#define L_LOCATION_TITLE "站点纬度，经度，UTC偏移"
+#define L_LOCATION_LONG "经度，以度和分钟为单位。+/-180，W为+"
+#define L_LOCATION_LAT "纬度，以度和分钟为单位。+/-90，N为+"
+#define L_LOCATION_RANGE_UTC_OFFSET "UTC 偏移，以-14到+12小时为单位"
 #define L_LOCATION_MESSAGE_UTC_OFFSET "标准时间的相对时区值（无冬季时间！）"
+
+// advanced configuration
+#define L_REVERT "还原为默认值"
+#define L_ADV_SET_TITLE "高级"
+#define L_ADV_SET_HEADER_MSG "重新启动 OnStep 后，以下更改将生效:"
+#define L_ADV_MOUNT_TYPE "选择 1 GEM, 2 EQ Fork, 3 Alt/Azm"
+
+#define L_ADV_SET_SPWR "蠕虫旋转的步骤数（0禁用）"
+#define L_ADV_SET_SPD "每度步数"
+#define L_ADV_SET_SPM "每微米步数"
+#define L_ADV_SET_us  "微步"
+#define L_ADV_SET_ma  "电流以毫安为单位，<i>小心！</i>"
+#define L_ADV_SET_REV "反向，0假或1真"
+#define L_ADV_SET_MIN "最低位置"
+#define L_ADV_SET_MAX "最大位置"
+#define L_ADV_ENABLE "启用高级配置"
+#define L_ADV_DISABLE "禁用高级配置（重新启动时所有默认设置）。"
+#define L_ADV_SET_NO_EDIT "目前禁止所有轴的编辑。可能未启用此功能，或者您需要重新启动OnStep。"
+#define L_ADV_SET_FOOTER_MSG1 "在按下[Upload]后，请注意上述更改，因为上载可能由于参数无效而被拒绝。"
+#define L_ADV_SET_FOOTER_MSG2 "当您选择[还原]时，该组将不可编辑，直到您重新启动OnStep。"
+#define L_ADV_SET_FOOTER_MSG3 "如果将IRUN设置为默认值Config.h以外的其他值，则会禁用IHOLD和IGOTO（关闭）."
+#define L_ADV_SET_FOOTER_MSG4 "更改每蠕虫蠕虫的Axis1步进数和每度步进数的比率可能会损坏Library NV存储区，如果需要，请首先备份所有目录。"
+
+// reset control
+#define L_RESET_TITLE "OnStep 重置控制:"
+#define L_RESET "重启 OnStep"
+#define L_RESET_FWU "重启 OnStep 用于固件上传"
+#define L_RESET_MSG1 "OnStep 必须处于“在家”或“停放”状态，否则重置请求将被忽略."
 
 // ----------------------------  WiFi ----------------------------
 
@@ -368,8 +411,8 @@
 #define L_DOWN_MESSAGE1 "如果波特率不符，请重新打开电源会有所帮助。<br /> <br />"
 #define L_DOWN_MESSAGE2 "其他可能的原因：<br /> <ul>"
 #define L_DOWN_MESSAGE3 "配置错误的OnStep波特率."
-#define L_DOWN_MESSAGE4A "ESP波特率配置错误."
-#define L_DOWN_MESSAGE4B "配置错误的MCU波特率."
+#define L_DOWN_MESSAGE4 "ESP波特率配置错误."
+#define L_DOWN_MESSAGE5 "配置错误的MCU波特率."
 #define L_DOWN_MESSAGE6 "COM端口的电缆连接不正确（如果交换了RX / TX，则会损坏硬件。）"
 #define L_DOWN_MESSAGE7 "电源引脚的接线错误。OnStep的MCU与附加模块的MCU之间必须接地（GND）"
 
@@ -401,6 +444,7 @@
 #define L_GE_ALT_MAX "超出上限"
 #define L_GE_WEATHER_INIT "天气传感器初始化失败"
 #define L_GE_SITE_INIT "RTC初始化失败"
+#define L_GE_NV_INIT "初始化 NV/EEPROM 损坏"
 #define L_GE_OTHER "未知错误，代码"
 
 // command errors

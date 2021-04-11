@@ -2,7 +2,7 @@
 // Configuration for OnStep Ethernet Add-on
 
 /*
- *          For more information on setting OnStep up see http://www.stellarjourney.com/index.php?r=site/equipment_onstep 
+ *          For more information on setting OnStep up see https://onstep.groups.io/g/main/wiki/7149
  *                      and join the OnStep Groups.io at https://groups.io/g/onstep
  * 
  *           *** Read the compiler warnings and errors, they are there to help guard against invalid configurations ***
@@ -32,30 +32,42 @@ IPAddress subnet(255, 255, 255, 0);
                                           //         At startup this firmware will attempt to switch OnStep's baud rate to this
                                           //         faster speed (vs. SERIAL_BAUD_DEFAULT) and AFTER success, start WiFi, etc.
 
+// USER FEEDBACK -------------------------------------------------------------------------------------------------------------------
+#define LED_STATUS                    OFF //    OFF, GPIO LED pin. Flashes connecting then steady on connected.               Infreq
+
 // DISPLAY -------------------------------------------------------------------------------------------------------------------------
 #define DISPLAY_LANGUAGE             L_en //   L_en, English. Specify language with two letter country code, if supported.    Adjust
-#define DISPLAY_WEATHER               OFF //    OFF, ON Shows weather/ambient conditions (from OnStep) on status page.        Option
-#define DISPLAY_INTERNAL_TEMPERATURE  OFF //    OFF, ON for internal MCU temperature display.                                 Option
+#define DISPLAY_WEATHER               OFF //    OFF, ON ambient conditions in locale default units.                           Option
+#define DISPLAY_INTERNAL_TEMPERATURE  OFF //    OFF, ON internal MCU temp. in locale default units.                           Option
 #define DISPLAY_HIGH_PRECISION_COORDS OFF //    OFF, ON for pull high precision coordinates from OnStep.                      Option
+#define DISPLAY_RESET_CONTROLS        OFF //    OFF, ON to allow reset of OnStep, FWU for STM32 firmware upload pin HIGH.     Option
+
 #define DISPLAY_SPECIAL_CHARS          ON //     ON, For standard ASCII special symbols (compatibility.)                      Infreq
 #define DISPLAY_ADVANCED_CHARS         ON //     ON, For standard "RA/Dec" instead of symbols.                                Infreq
-#define DISPLAY_HIGH_PRECISION_COORDS OFF //    OFF, ON for high precision coordinate display on status page.                 Infreq
 
-// COMMAND CHANNELS ----------------------------------------------------------------------------------------------------------------
-#define MONITOR_GUIDE_COMMANDS        OFF //    OFF, Allow error reporting to also monitor guide commands.                    Infreq
+// DRIVE CONFIGURATION -------------------------------------------------------------------------------------------------------------
+#define DRIVE_CONFIGURATION           OFF //    OFF, ON to display/modify mount, rotator, focuser settings                    Option
+#define DRIVE_MAIN_AXES_MICROSTEPS    OFF //    OFF, ON to display Axis1/2 Microsteps if available.                           Option
+#define DRIVE_MAIN_AXES_CURRENT       OFF //    OFF, ON to display Axis1/2 IRUN if available.                                 Option
+#define DRIVE_MAIN_AXES_REVERSE       OFF //    OFF, ON to display Axis1/2 Reverse if available.                              Option
 
 // ENCODER SUPPORT -----------------------------------------------------------------------------------------------------------------
-#define AXIS1_ENC                     OFF //    OFF, CWCCW, AB. RA/Azm Axis on Pin 5 (A or CW) and Pin 6 (B or CCW,)          Option
-#define AXIS1_ENC_REVERSE             OFF //    OFF, ON to reverse the count direction.                                       Adjust
-#define AXIS1_ENC_TICKS_DEG     555.55555 // 555.55, n, (ticks/degree.) Encoder ticks per degree.                             Adjust
-#define AXIS1_ENC_DIFF_LIMIT          900 //    900, n, (arcsec.) Maximum difference between encoder and OnStep before sync.  Adjust
+#define ENC_AUTO_SYNC_DEFAULT          ON //     ON, Automatically sync Encoders to OnStep.                                   Option
+#define ENC_AUTO_SYNC_MEMORY          OFF //    OFF, ON Remember automatic sync setting across power cycles.                  Option
 
-#define AXIS2_ENC                     OFF //    OFF, CWCCW, AB. Dec/Alt Axis on Pin 7 (A or CW) and Pin 8 (B or CCW)          Option
+#define AXIS1_ENC                     OFF //    OFF, CWCCW, AB, BC_BISSC. Dec/Alt Axis (A/CW/MA) & (B/CCW/SLO.)               Option
+#define AXIS1_ENC_REVERSE             OFF //    OFF, ON to reverse the count direction.                                       Adjust
+#define AXIS1_ENC_TICKS_DEG      22.22222 // 22.222, n, (ticks/degree.) Encoder ticks per degree.                             Adjust
+#define AXIS1_ENC_DIFF_LIMIT_TO       300 //    300, n, (arcsec.) Minimum diff. between encoder/OnStep for sync. to OnStep    Adjust
+#define AXIS1_ENC_DIFF_LIMIT_FROM     OFF //    OFF, n, (arcsec.) Maximum diff. between encoder/OnStep for sync. from OnStep  Adjust
+                                          //         for absolute encoders, leave off when setting Zero, then enable.
+
+#define AXIS2_ENC                     OFF //    OFF, CWCCW, AB, BC_BISSC. Dec/Alt Axis (A/CW/MA) & (B/CCW/SLO.)               Option
 #define AXIS2_ENC_REVERSE             OFF //    OFF, ON to reverse the count direction.                                       Option
-#define AXIS2_ENC_TICKS_DEG      13.33333 // 13.333, n, (ticks/degree.) Encoder ticks per degree.                             Adjust
-#define AXIS2_ENC_DIFF_LIMIT          900 //    900, n, (arcsec.) Maximum difference between encoder and OnStep before sync.  Adjust
-                                                     
-#define ENCODERS_AUTO_SYNC            OFF //    OFF, ON, Enable support for auto sync of OnStep to encoder values.            Adjust
+#define AXIS2_ENC_TICKS_DEG      22.22222 // 22.222, n, (ticks/degree.) Encoder ticks per degree.                             Adjust
+#define AXIS2_ENC_DIFF_LIMIT_TO       300 //    300, n, (arcsec.) Minimum diff. between encoder/OnStep for sync. to OnStep.   Adjust
+#define AXIS2_ENC_DIFF_LIMIT_FROM     OFF //    OFF, n, (arcsec.) Maximum diff. between encoder/OnStep for sync. from OnStep. Adjust
+                                          //         for absolute encoders, leave off when setting Zero, then enable.
 
 // ENCODER RATE CONTROL
 #define AXIS1_ENC_RATE_CONTROL        OFF //    OFF, ON Rate control for RA high resolution encoder. EQ mounts only.          Infreq
@@ -65,9 +77,4 @@ IPAddress subnet(255, 255, 255, 0);
 #define AXIS1_ENC_BIN_AVG             OFF //    OFF, n, (Number of bins.)  Enables binned rolling average feature.            Option
 
 // THAT'S IT FOR USER CONFIGURATION!
-
-// -------------------------------------------------------------------------------------------------------------------------
-
-#define Ser Serial1 // Default=Serial1, This is the hardware serial port where OnStep is attached
-
 // ---------------------------------------------------------------------------------------------------------------------------------

@@ -57,7 +57,7 @@ bool processCommand(char* command, char* response, unsigned long timeOutMs) {
     }
     if ((command[1]=='F') || (command[1]=='f')) {
       if (strchr("+-QZHhFS1234",command[2])) noResponse=true;
-      if (strchr("Ap",command[2])) shortResponse=true;
+      if (strchr("Apc",command[2]) || (strchr("B",command[2])&&command[3]!='#') || (strchr("C",command[2])&&command[3]!='#') || (strchr("D",command[2])&&command[3]!='#')) shortResponse=true;
     }
     if (command[1] == 'M') {
       if (strchr("ewnsg", command[2])) noResponse = true;
@@ -418,6 +418,64 @@ LX200RETURN writeBacklashLX200(const uint8_t &axis, const float &backlash)
   char text[20];
   sprintf(text, ":$BX%u#", (unsigned int)backlash);
   text[3] = axis == 1 ? 'R' : 'D';
+  return SetLX200(text);
+}
+
+LX200RETURN readFocTCCoefLX200(const uint8_t &foc, float &tccoef)
+{
+  char out[20];
+  if (foc == 1) SetLX200(":FA1#"); else SetLX200(":FA2#");
+  LX200RETURN ok = GetLX200(":FC#", out);
+  if (ok == LX200VALUEGET)
+  {
+    tccoef = (float)strtol(&out[0], NULL, 10);
+  }
+  return ok;
+}
+
+LX200RETURN writeFocTCCoefLX200(const uint8_t &foc, const float &tccoef)
+{
+  char text[20];
+  if (foc == 1) SetLX200(":FA1#"); else SetLX200(":FA2#");
+  sprintf(text, ":FC%d#", (signed int)tccoef);
+  return SetLX200(text);
+}
+LX200RETURN readFocBacklashLX200(const uint8_t &foc, float &backlash)
+{
+  char out[20];
+  if (foc == 1) SetLX200(":FA1#"); else SetLX200(":FA2#");
+  LX200RETURN ok = GetLX200(":FB#", out);
+  if (ok == LX200VALUEGET)
+  {
+    backlash = (float)strtol(&out[0], NULL, 10);
+  }
+  return ok;
+}
+
+LX200RETURN writeFocBacklashLX200(const uint8_t &foc, const float &backlash)
+{
+  char text[20];
+  if (foc == 1) SetLX200(":FA1#"); else SetLX200(":FA2#");
+  sprintf(text, ":FB%d#", (signed int)backlash);
+  return SetLX200(text);
+}
+LX200RETURN readFocTCDeadbandLX200(const uint8_t &foc, float &tcdeadband)
+{
+  char out[20];
+  if (foc == 1) SetLX200(":FA1#"); else SetLX200(":FA2#");
+  LX200RETURN ok = GetLX200(":FD#", out);
+  if (ok == LX200VALUEGET)
+  {
+    tcdeadband = (float)strtol(&out[0], NULL, 10);
+  }
+  return ok;
+}
+
+LX200RETURN writeFocTCDeadbandLX200(const uint8_t &foc, const float &tcdeadband)
+{
+  char text[20];
+  if (foc == 1) SetLX200(":FA1#"); else SetLX200(":FA2#");
+  sprintf(text, ":FD%d#", (signed int)tcdeadband);
   return SetLX200(text);
 }
 

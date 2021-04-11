@@ -18,12 +18,26 @@ char serialRecvFlush() {
   return c;
 }
 
+void clearSerialChannel() {
+  for (int i=0; i<3; i++) {
+    Ser.print(":#");
+#if LED_STATUS != OFF
+    digitalWrite(LED_STATUS,LED_STATUS_OFF_STATE);
+#endif
+    delay(200);
+    serialRecvFlush();
+#if LED_STATUS != OFF
+    digitalWrite(LED_STATUS,LED_STATUS_ON_STATE);
+#endif
+    delay(200);
+  }
+}
+
 // smart LX200 aware command and response over serial
 boolean processCommand(const char cmd[], char response[], long timeOutMs) {
   Ser.setTimeout(timeOutMs);
   
   // clear the read/write buffers
-  Ser.flush();
   serialRecvFlush();
 
   // send the command
@@ -38,7 +52,7 @@ boolean processCommand(const char cmd[], char response[], long timeOutMs) {
     } else
     if (cmd[1]=='M') {
       if (strchr("ewnsg",cmd[2])) noResponse=true;
-      if (strchr("SAP",cmd[2])) shortResponse=true;
+      if (strchr("ADNPS",cmd[2])) shortResponse=true;
     } else
     if (cmd[1]=='Q') {
       if (strchr("#ewns",cmd[2])) noResponse=true;
@@ -81,8 +95,12 @@ boolean processCommand(const char cmd[], char response[], long timeOutMs) {
     if (cmd[1]=='U') {
       noResponse=true; 
     } else
-    if ((cmd[1]=='W') && (cmd[2]!='?')) { 
-      noResponse=true; 
+    if (cmd[1]=='W') {
+      if (strchr("R",cmd[2])) {
+        if (strchr("+-",cmd[3])) shortResponse=true; else noResponse=true; // WR+ WR- else WR
+      }
+      if (strchr("S",cmd[2])) shortResponse=true;  // WS
+      if (strchr("0123",cmd[2])) noResponse=true;  // W0 W1 W2 W3
     } else
     if ((cmd[1]=='$') && (cmd[2]=='Q') && (cmd[3]=='Z')) {
       if (strchr("+-Z/!",cmd[4])) noResponse=true;
@@ -207,4 +225,71 @@ float byteToTime(uint8_t b) {
   if (b <= 254) v=(b-198.0)*60.0; else  // 1 minute to 56 minutes      (208 to 254)
   if (b == 255) v=3600.0;               // 1 hour                      (255)
   return v;
+}
+
+typedef struct AxisSettings {
+   double stepsPerMeasure; // degrees for axis1-3 or microns for axis4-5
+   int16_t microsteps;
+   int16_t IRUN;
+   int8_t reverse;
+   int16_t min;
+   int16_t max;
+} axisSettings;
+
+// convert axis settings string into numeric form
+boolean decodeAxisSettings(char s[], axisSettings &a) {
+  if (strcmp(s,"0") != 0) {
+    char *ws=s;
+    char *conv_end;
+    double f=strtod(ws,&conv_end); if (&s[0] != conv_end) a.stepsPerMeasure=f; else return false;
+    ws=strchr(ws,','); if (ws != NULL) {
+      ws++; a.microsteps=strtol(ws,NULL,10);
+      ws=strchr(ws,','); if (ws != NULL) {
+        ws++; a.IRUN=strtol(ws,NULL,10);
+        ws=strchr(ws,','); if (ws != NULL) {
+          ws++; a.reverse=strtol(ws,NULL,10);
+          ws=strchr(ws,','); if (ws != NULL) {
+            ws++; a.min=strtol(ws,NULL,10);
+            ws=strchr(ws,','); if (ws != NULL) {
+              ws++; a.max=strtol(ws,NULL,10);
+              return true;
+            }
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
+// convert axis settings string into numeric form
+boolean validateAxisSettings(int axisNum, boolean altAz, axisSettings &a) {
+  int   MinLimitL[5]   = {-270,-90,-360,  0,  0};
+  int   MinLimitH[5]   = { -90,  0,   0,500,500};
+  int   MaxLimitL[5]   = {  90,  0,   0,  0,  0};
+  int   MaxLimitH[5]   = { 270, 90, 360,500,500};
+  float StepsLimitL[5] = {   150.0,   150.0,    5.0, 0.005, 0.005};
+  float StepsLimitH[5] = {122400.0,122400.0, 7200.0,  20.0,  20.0};
+  int   IrunLimitH[5]  = { 3000, 3000, 1000, 1000, 1000};
+  if (altAz) { MinLimitL[0]=-360; MinLimitH[0]=-180; MaxLimitL[0]=180; MaxLimitH[0]=360; }
+  axisNum--;
+  if (a.stepsPerMeasure < StepsLimitL[axisNum] || a.stepsPerMeasure > StepsLimitH[axisNum]) return false;
+  if (a.microsteps != OFF && (a.microsteps < 1 || a.microsteps > 256)) return false;
+  if (a.IRUN != OFF && (a.IRUN < 0 || a.IRUN > IrunLimitH[axisNum])) return false;
+  if (a.reverse != OFF && a.reverse != ON) return false;
+  if (a.min < MinLimitL[axisNum] || a.min > MinLimitH[axisNum]) return false;
+  if (a.max < MaxLimitL[axisNum] || a.max > MaxLimitH[axisNum]) return false;
+  return true;
+}
+
+// remove leading and trailing 0's
+void stripNum(char s[]) {
+  int pp=-1;
+  for (unsigned int p=0; p < strlen(s); p++) if (s[p] == '.') { pp=p; break; }
+  if (pp != -1) {
+    int p;
+    for (p=strlen(s)-1; p >= pp; p--) { if (s[p] != '0') break; s[p]=0; }
+    if (s[p] == '.') s[p]=0;
+  }
+  while (s[0] == '0' && s[1] != '.' && strlen(s) > 1) memmove(&s[0],&s[1],strlen(s));
 }

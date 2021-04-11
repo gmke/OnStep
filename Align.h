@@ -3,15 +3,13 @@
 //
 // by Howard Dutton
 //
-// Copyright (C) 2012 to 2018 Howard Dutton
+// Copyright (C) 2012 to 2020 Howard Dutton
 //
 
 #pragma once
 
 // -----------------------------------------------------------------------------------
 // ADVANCED GEOMETRIC ALIGN FOR ALT/AZM MOUNTS (GOTO ASSIST)
-
-#if MOUNT_TYPE == ALTAZM
 
 typedef struct {
   double ha;
@@ -47,7 +45,7 @@ class TGeoAlignH
     void model(int n);
 
   private:
-    boolean geo_ready;
+    bool geo_ready;
     double avgAlt;
     double avgAzm;
 
@@ -68,19 +66,10 @@ class TGeoAlignH
     void do_search(double sf, int p1, int p2, int p3, int p4, int p5, int p6, int p7, int p8, int p9);
 };
 
-TGeoAlignH Align;
-#endif
+TGeoAlignH AlignH;
 
 // -----------------------------------------------------------------------------------
 // ADVANCED GEOMETRIC ALIGN FOR EQUATORIAL MOUNTS (GOTO ASSIST)
-
-#if MOUNT_TYPE != ALTAZM
-
-typedef struct {
-  double ha;
-  double dec;
-  int side;
-} align_coord2_t;
 
 class TGeoAlign
 {
@@ -108,7 +97,7 @@ class TGeoAlign
     void model(int n);
 
   private:
-    boolean geo_ready;
+    bool geo_ready;
     double avgDec;
     double avgHA;
 
@@ -129,14 +118,13 @@ class TGeoAlign
     void do_search(double sf, int p1, int p2, int p3, int p4, int p5, int p6, int p7, int p8, int p9);
 };
 
-TGeoAlign Align;
-#endif
+TGeoAlign AlignE;
 
 byte alignNumStars = 0;
 byte alignThisStar = 0;
 
 // checks to see if an alignment is active
-boolean alignActive() {
+bool alignActive() {
   return (alignNumStars > 0) && (alignThisStar <= alignNumStars);
 }
 
@@ -146,7 +134,8 @@ CommandErrors alignStar() {
   if ((alignNumStars == alignThisStar) && (meridianFlip == MeridianFlipAlign)) meridianFlip=MeridianFlipNever;
 
   if (alignThisStar <= alignNumStars) {
-    CommandErrors e=Align.addStar(alignThisStar,alignNumStars,newTargetRA,newTargetDec);
+    CommandErrors e;
+    if (mountType == ALTAZM) e=AlignH.addStar(alignThisStar,alignNumStars,newTargetRA,newTargetDec); else e=AlignE.addStar(alignThisStar,alignNumStars,newTargetRA,newTargetDec);
     if (e == CE_NONE) alignThisStar++; else return e;
   } else return CE_PARAM_RANGE;
 

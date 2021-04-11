@@ -6,6 +6,7 @@
 #define L_DOWNLOAD "Download"
 #define L_ACCEPT "Accept"
 #define L_CONTINUE "Continue"
+#define L_ARE_YOU_SURE "Are you sure"
 #define L_LOGOUT "Logout"
 
 #define L_UT "UT"
@@ -35,13 +36,15 @@
 #define L_RATE "rate"
 #define L_RANGE "range"
 #define L_UNKNOWN "Unknown"
+#define L_FAULT "Fault"
 
 // ---------------------------- Index ----------------------------
 // date/time
 #define L_TIME_BROWSER_UT "UT (web browser)"
 
 // weather
-#define L_TEMPERATURE "Temperature"
+#define L_TELE_TEMPERATURE "Telescope Temperature"
+#define L_TEMPERATURE "Ambient Temperature"
 #define L_PRESSURE "Barometric Pressure"
 #define L_HUMIDITY "Relative Humidity"
 #define L_DEW_POINT "Dew Point Temperature"
@@ -81,6 +84,7 @@
 #define L_REFR_COMP_BOTH "Refr Comp Both Axis"
 #define L_FULL_COMP_RA "Full Comp RA Axis"
 #define L_FULL_COMP_BOTH "Full Comp Both Axis"
+#define L_TRACKING "Tracking"
 #define L_TRACKING_RATE "Tracking Rate"
 #define L_CURRENT_MAXRATE "Current MaxRate"
 #define L_DEFAULT_MAXRATE "Default MaxRate"
@@ -98,7 +102,6 @@
 
 // misc. errors/workload
 #define L_INTERNAL_TEMP "Controller Internal Temperature"
-#define L_CMD_ERROR_LOG "Command Error Log"
 #define L_LAST_GENERAL_ERROR "Last General (Background) Error"
 #define L_WORKLOAD "Workload"
 #define L_WIRELESS_SIGNAL_STRENGTH "Wireless signal strength"
@@ -224,16 +227,21 @@
 #define L_CAT_UPLOAD_LINES_WRITTEN "lines written"
 #define L_CAT_UPLOAD_SELECT_FAIL "Upload failed, unable to select catalog."
 #define L_CAT_UPLOAD_NO_CAT "Upload failed, no catalog selected."
+#define L_CAT_CLEAR "Clear Catalog"
+#define L_CAT_CLEAR_LIB "Clear Library"
 
 // --------------------------- Encoders --------------------------
 
 // general settings
 #define L_ENC_SYNC_TO_ENC "Sync OnStep to Encoders"
 #define L_ENC_SYNC_TO_ONS "Sync Encoders to OnStep"
+#define L_ENC_ZERO_TO_ONS "Set Absolute Encoder Zero to OnStep"
 #define L_ENC_AUTO_SYNC "Automatically sync. OnStep to Encoders"
-#define L_ENC_MAX_ANGLE "Max angular distance (Encoders vs. OnStep)"
-#define L_ENC_MAX_ANGLE_AXIS1 "(Axis1, arc-sec 0 to 9999)"
-#define L_ENC_MAX_ANGLE_AXIS2 "(Axis2, arc-sec 0 to 9999)"
+#define L_ENC_CONF "Encoder Configuration"
+#define L_ENC_SET_TPD "Counts per degree"
+#define L_ENC_MAX_ANGLE "Max angular dist. (Enc. vs OnStep)"
+#define L_ENC_MAX_ANGLE_AXIS1 "in arc-sec 0 to 9999"
+#define L_ENC_MAX_ANGLE_AXIS2 "in arc-sec 0 to 9999"
 #define L_ENC_AUTO_RATE "OnStep rate control"
 #define L_ENC_SYNC_NOW "Now"
 
@@ -274,8 +282,8 @@
 
 #define L_REFINE_POLAR_ALIGN "Refine Polar Alignment"
 #define L_REFINE_PA "Refine PA"
-#define L_REFINE_MESSAGE1 "Setup &amp; 3+ Star Align mount.  Goto bright star near NCP or SCP with Dec in 50 to 80&deg; range (N or S.) "
-#define L_REFINE_MESSAGE2 "Press [Refine PA] button.  Use mount's PA adjust controls to center the star again."
+#define L_REFINE_MESSAGE1 "Setup &amp; 3+ Star align mount. Goto bright star near NCP or SCP with Dec in 50 to 80&deg; range (N or S.) "
+#define L_REFINE_MESSAGE2 "Press [Refine PA] button. Use mount's PA adjust controls to center the star again. "
 #define L_REFINE_MESSAGE3 "Optionally align the mount again."
 
 #define L_PARK "Park"
@@ -298,33 +306,68 @@
 
 // ------------------------ Configuration ------------------------
 
+#define L_BASIC_SET_TITLE "Basic:"
+
 #define L_MAX_SLEW_SPEED "Maximum Slew Speed"
 
 // goto Rate
-#define L_VSLOW "Very Slow (0.5x)"
+#define L_VSLOW "VSlow (0.5x)"
 #define L_SLOW "Slow (0.75x)"
 #define L_NORMAL "Normal (1x)"
 #define L_FAST "Fast (1.5x)"
-#define L_VFAST "Very Fast (2x)"
+#define L_VFAST "VFast (2x)"
 
 // backlash
-#define L_BACKLASH_TITLE "Backlash"
-#define L_BACKLASH_RANGE_AXIS1 "Axis1, in arc-seconds 0 to 3600"
-#define L_BACKLASH_RANGE_AXIS2 "Axis2, in arc-seconds 0 to 3600"
+#define L_BACKLASH_RANGE_AXIS1 "Backlash, in arc-seconds 0 to 3600"
+#define L_BACKLASH_RANGE_AXIS2 "Backlash, in arc-seconds 0 to 3600"
+#define L_BACKLASH_RANGE_AXIS345 "Backlash, in steps 0 to 32767"
+
+// deadband/TCF
+#define L_DEADBAND_RANGE_AXIS45 "TCF Deadband, in steps 1 to 32767"
+#define L_TCF_COEF_RANGE_AXIS45 "TCF Coef, in microns/deg. C -999.0 to 999.0"
+#define L_TCF_COEF_EN_AXIS45 "TCF Enable, 0 false or 1 true"
 
 // limits
-#define L_LIMITS_TITLE "Limits"
-#define L_LIMITS_RANGE_HORIZON "Horizon, in degrees +/- 30"
-#define L_LIMITS_RANGE_OVERHEAD "Overhead, in degrees 60 to 90"
-#define L_LIMITS_RANGE_MERIDIAN_E "Past Meridian when East of the pier, in degrees +/- 180"
-#define L_LIMITS_RANGE_MERIDIAN_W "Past Meridian when West of the pier, in degrees +/- 180"
+#define L_LIMITS_TITLE "Horizon and Overhead Limits"
+#define L_LIMITS_RANGE_HORIZON "Horizon, minimum altitude in degrees +/- 30"
+#define L_LIMITS_RANGE_OVERHEAD "Overhead, maximum altitude in degrees 60 to 90"
+#define L_LIMITS_RANGE_MERIDIAN_E "Past Meridian when East of the pier, in degrees +/- 270"
+#define L_LIMITS_RANGE_MERIDIAN_W "Past Meridian when West of the pier, in degrees +/- 270"
 
 // location
-#define L_LOCATION_TITLE "Location"
-#define L_LOCATION_LONG "Longitude, in deg. and min. +/- 180, W is +"
-#define L_LOCATION_LAT "Latitude, in deg. and min. +/- 90, N is +"
-#define L_LOCATION_RANGE_UTC_OFFSET "UTC Offset, in hours -12 to +14"
+#define L_LOCATION_TITLE "Site Latitude, Longitude, UTC Offset"
+#define L_LOCATION_LONG "Longitude deg. min. sec. +/- 180, W is +"
+#define L_LOCATION_LAT  "Latitude deg. min. sec. +/- 90, N is +"
+#define L_LOCATION_RANGE_UTC_OFFSET "UTC Offset, in hours and min. -14 to +12"
 #define L_LOCATION_MESSAGE_UTC_OFFSET "Opposite of a time-zone value, this is for Standard Time (not Daylight Time.)"
+
+// advanced configuration
+#define L_REVERT "Revert to Defaults"
+#define L_ADV_SET_TITLE "Advanced"
+#define L_ADV_SET_HEADER_MSG "changes below take effect after rebooting OnStep:"
+#define L_ADV_MOUNT_TYPE "Select 1 GEM, 2 EQ Fork, or 3 Alt/Azm"
+
+#define L_ADV_SET_SPWR "Steps per worm rotation (0 to disable)"
+#define L_ADV_SET_SPD "Steps per degree"
+#define L_ADV_SET_SPM "Steps per micron"
+#define L_ADV_SET_us  "Microsteps"
+#define L_ADV_SET_ma  "Current in milli-amps, <i>caution!</i>"
+#define L_ADV_SET_REV "Reverse direction, 0 false or 1 true"
+#define L_ADV_SET_MIN "Minimum position"
+#define L_ADV_SET_MAX "Maximum position"
+#define L_ADV_ENABLE "Enable Advanced Configuration"
+#define L_ADV_DISABLE "Disable Advanced Configuration (all defaults on reboot)"
+#define L_ADV_SET_NO_EDIT "Editing of all axes is disabled at the moment.  Perhaps this feature is not enabled or you need to reboot OnStep."
+#define L_ADV_SET_FOOTER_MSG1 "After pressing [Upload] take note of changes above since the upload may have been rejected due to an invalid parameter."
+#define L_ADV_SET_FOOTER_MSG2 "When you choose to [Revert] that group becomes unavailable for editing until you reboot OnStep."
+#define L_ADV_SET_FOOTER_MSG3 "If IRUN is set to other than the Config.h default, IHOLD and IGOTO are disabled (OFF.)"
+#define L_ADV_SET_FOOTER_MSG4 "Changing the ratio of Axis1 Steps per worm rotation and Steps per degree may corrupt the Library NV memory area, backup any catalogs first if needed."
+
+// reset control
+#define L_RESET_TITLE "OnStep Reboot Control:"
+#define L_RESET "Reboot OnStep"
+#define L_RESET_FWU "Reboot OnStep for firmware upload"
+#define L_RESET_MSG1 "OnStep must be At Home or Parked, otherwise the reset request is ignored."
 
 // ----------------------------  WiFi ----------------------------
 
@@ -365,12 +408,12 @@
 // --------------------------- Constants -------------------------
 
 #define L_DOWN_TITLE "Serial Interface to OnStep is Down!"
-#define L_DOWN_MESSAGE1 "Powering off/on again can help if there is a baud rate mis-match (caused by OnStep restarting.)<br /><br />"
-#define L_DOWN_MESSAGE2 "Other possible causes:<br /><ul>"
-#define L_DOWN_MESSAGE3 "Incorrectly configured OnStep baud rate."
-#define L_DOWN_MESSAGE4A "Incorrectly configured ESP baud rate."
-#define L_DOWN_MESSAGE4B "Incorrectly configured MCU baud rate."
-#define L_DOWN_MESSAGE6 "Incorrect wiring of the com ports (or damaged h/w if RX/TX were EVER wired incorrectly.)"
+#define L_DOWN_MESSAGE1 "If you just rebooted OnStep please wait for several seconds for everything to startup again, then check to be sure you're still connected to WiFi.<br /><br />"
+#define L_DOWN_MESSAGE2 "If this is a persistant problem here are other possible causes:<br /><ul>"
+#define L_DOWN_MESSAGE3 "Baud rate mismatch due to reboot of only OnStep, power everything off/on again."
+#define L_DOWN_MESSAGE4 "Incorrectly configured Addon baud rate."
+#define L_DOWN_MESSAGE5 "Incorrectly configured OnStep baud rate."
+#define L_DOWN_MESSAGE6 "Incorrect wiring of the com ports."
 #define L_DOWN_MESSAGE7 "Incorrect wiring of power supply pins.  Gnd must be shared between OnStep's MCU and the Addon's MCU."
 
 #define L_PAGE_STATUS "Status"
@@ -400,7 +443,8 @@
 #define L_GE_UNSPECIFIED "Unknown error"
 #define L_GE_ALT_MAX "Above overhead limit"
 #define L_GE_WEATHER_INIT "Weather sensor init failed"
-#define L_GE_SITE_INIT "Time or Location not updated"
+#define L_GE_SITE_INIT "Time or loc. not updated"
+#define L_GE_NV_INIT "Init NV/EEPROM bad"
 #define L_GE_OTHER "Unknown Error, code"
 
 // command errors

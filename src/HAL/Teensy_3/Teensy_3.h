@@ -1,10 +1,41 @@
 // Platform setup ------------------------------------------------------------------------------------
 
 // Lower limit (fastest) step rate in uS for this platform, width of step pulse, and set HAL_FAST_PROCESSOR is needed
-#if defined(__IMXRT1052__) || defined(__IMXRT1062__) 
-  #define HAL_MAXRATE_LOWER_LIMIT 1.5
-  #define HAL_PULSE_WIDTH 0 // effectively disable pulse mode since the pulse width is unknown at this time
+#if defined(__MK64FX512__) 
+  // for using the DAC as a digital output on Teensy3.5 A21=66 A22=67
+  #define digitalWrite(x,y) { if (x==66 || x==67) { if ((y)==LOW) analogWrite(x,0); else analogWrite(x,255); } else digitalWrite(x,y); }
+  #define HAL_MAXRATE_LOWER_LIMIT 12
+  #define HAL_PULSE_WIDTH 750
   #define HAL_FAST_PROCESSOR
+#elif defined(__MK66FX1M0__)
+  // for using the DAC as a digital output on Teensy3.6 A21=66 A22=67
+  #define digitalWrite(x,y) { if (x==66 || x==67) { if ((y)==LOW) analogWrite(x,0); else analogWrite(x,255); } else digitalWrite(x,y); }
+  #if (F_CPU>=240000000)
+    #define HAL_MAXRATE_LOWER_LIMIT 2
+    #define HAL_PULSE_WIDTH 260
+  #elif (F_CPU>=180000000)
+    #define HAL_MAXRATE_LOWER_LIMIT 2.6
+    #define HAL_PULSE_WIDTH 400
+  #else
+    #define HAL_MAXRATE_LOWER_LIMIT 4.8
+    #define HAL_PULSE_WIDTH 500
+  #endif
+  #define HAL_FAST_PROCESSOR
+#else
+  // Teensy3.2,3.1,etc.
+  #if (F_CPU>=120000000)
+    #define HAL_MAXRATE_LOWER_LIMIT 10
+    #define HAL_PULSE_WIDTH 800
+  #elif (F_CPU>=96000000)
+    #define HAL_MAXRATE_LOWER_LIMIT 12
+    #define HAL_PULSE_WIDTH 900
+  #elif (F_CPU>=72000000)
+    #define HAL_MAXRATE_LOWER_LIMIT 14
+    #define HAL_PULSE_WIDTH 1000
+  #else
+    #define HAL_MAXRATE_LOWER_LIMIT 28
+    #define HAL_PULSE_WIDTH 1500
+  #endif
 #endif
 
 // New symbols for the Serial ports so they can be remapped if necessary -----------------------------
@@ -12,6 +43,10 @@
 // SerialA is always enabled, SerialB and SerialC are optional
 #define SerialB Serial1
 #define HAL_SERIAL_B_ENABLED
+#if (defined(__MK64FX512__) || defined(__MK66FX1M0__)) && SERIAL_C_BAUD_DEFAULT != OFF
+  #define SerialC Serial4
+  #define HAL_SERIAL_C_ENABLED
+#endif
 #if defined(USB_DUAL_SERIAL) || defined(USB_TRIPLE_SERIAL)
   #define SerialD SerialUSB1
   #define SERIAL_D_BAUD_DEFAULT 9600
@@ -25,13 +60,19 @@
 
 // New symbol for the default I2C port -------------------------------------------------------------
 #include <Wire.h>
+#if defined(__MK64FX512__) || defined(__MK66FX1M0__)
+#define HAL_Wire Wire1
+#else
 #define HAL_Wire Wire
+#endif
+#define HAL_WIRE_CLOCK 100000
 
 // Non-volatile storage ------------------------------------------------------------------------------
 #if defined(NV_AT24C32_PLUS)
   #include "../drivers/NV_I2C_EEPROM_AT24C32_PLUS.h"
 #elif defined(NV_AT24C32)
-  #include "../drivers/NV_I2C_EEPROM_AT24C32_C.h"
+  // defaults to 0x57 and 4KB
+  #include "../drivers/NV_I2C_EEPROM_24XX_C.h"
 #elif defined(NV_MB85RC256V)
   #include "../drivers/NV_I2C_FRAM_MB85RC256V.h"
 #else
@@ -39,34 +80,47 @@
 #endif
 
 //--------------------------------------------------------------------------------------------------
+// Nanoseconds delay function
+unsigned int _nanosPerPass=1;
+void delayNanoseconds(unsigned int n) {
+  unsigned int np=(n/_nanosPerPass);
+  for (unsigned int i=0; i<np; i++) { __asm__ volatile ("nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t" "nop\n\t"); }
+}
+
+//--------------------------------------------------------------------------------------------------
 // General purpose initialize for HAL
-#include "imxrt.h"
+void HAL_Initialize(void) {
+  // calibrate delayNanoseconds()
+  uint32_t startTime,npp;
+  cli(); startTime=micros(); delayNanoseconds(65535); npp=micros(); sei(); npp=((int32_t)(npp-startTime)*1000)/63335;
+  if (npp<1) npp=1; if (npp>2000) npp=2000; _nanosPerPass=npp;
 
-void HAL_Init(void) {
   analogReadResolution(10);
-
-  // clear/make available all PIT timers
-//  CCM_CCGR1 |= CCM_CCGR1_PIT(CCM_CCGR_ON);
-//  PIT_MCR = 1;
-//  PIT_TCTRL0=0;
-//  PIT_TCTRL1=0;
-//  PIT_TCTRL2=0;
-//  PIT_TCTRL3=0;
 }
 
 //--------------------------------------------------------------------------------------------------
 // Internal MCU temperature (in degrees C)
 float HAL_MCU_Temperature(void) {
-  return 25.0;
+#if defined(__MK64FX512__)
+  int Tpin=70;
+#elif defined(__MK66FX1M0__)
+  int Tpin=70;
+#else // Teensy3.0,3.1,3.2
+  int Tpin=38;
+#endif
+  // delta of -1.715 mV/C where 25C measures 719 mV
+  float v=(analogRead(Tpin)/1024.0)*3.3;
+  float t=(-(v-0.719)/0.001715)+25.0;
+  return t;
 }
 
 //--------------------------------------------------------------------------------------------------
 // Initialize timers
 
-static IntervalTimer itimer3;
+IntervalTimer itimer3;
 void TIMER3_COMPA_vect(void);
 
-static IntervalTimer itimer4;
+IntervalTimer itimer4;
 void TIMER4_COMPA_vect(void);
 
 extern long int siderealInterval;
@@ -75,12 +129,16 @@ extern void SiderealClockSetInterval (long int);
 // Init Axis1 and Axis2 motor timers and set their priorities
 void HAL_Init_Timers_Motor() {
   // set the system timer for millis() to the second highest priority
-//  SCB_SHPR3 = (32 << 24) | (SCB_SHPR3 & 0x00FFFFFF);
+  SCB_SHPR3 = (32 << 24) | (SCB_SHPR3 & 0x00FFFFFF);
 
-  if (!itimer3.begin(TIMER3_COMPA_vect, (float)128 * 0.0625)) Serial.println("Error assigning timer3");
-  itimer3.priority(0);
-  if (!itimer4.begin(TIMER4_COMPA_vect, (float)128 * 0.0625)) Serial.println("Error assigning timer4");
-  itimer4.priority(0);
+  itimer3.begin(TIMER3_COMPA_vect, (float)128 * 0.0625);
+  itimer4.begin(TIMER4_COMPA_vect, (float)128 * 0.0625);
+
+  // set the 1/100 second sidereal clock timer to run at the second highest priority
+  NVIC_SET_PRIORITY(IRQ_PIT_CH0, 32);
+  // set the motor timers to run at the highest priority
+  NVIC_SET_PRIORITY(IRQ_PIT_CH1, 0);
+  NVIC_SET_PRIORITY(IRQ_PIT_CH2, 0);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -89,7 +147,7 @@ void HAL_Init_Timers_Motor() {
 #define ISR(f) void f (void)
 void TIMER1_COMPA_vect(void);
 
-static IntervalTimer itimer1;
+IntervalTimer itimer1;
 
 // Init sidereal clock timer
 void HAL_Init_Timer_Sidereal() {
@@ -99,16 +157,14 @@ void HAL_Init_Timer_Sidereal() {
 
 void Timer1SetInterval(long iv, double rateRatio) {
   iv=round(((double)iv)/rateRatio);
-  if (!itimer1.begin(TIMER1_COMPA_vect, (float)iv * 0.0625)) Serial.println("Error assigning timer1");
-  itimer1.priority(32);
+  itimer1.begin(TIMER1_COMPA_vect, (float)iv * 0.0625);
 }
 
 //--------------------------------------------------------------------------------------------------
 // Re-program interval for the motor timers
 
-#define F_BUS 16000000L                                  // we force the timer to run at 16MHz
 #define TIMER_RATE_MHZ (F_BUS/1000000.0)                 // Teensy motor timers run at F_BUS Hz so use full resolution
-#define TIMER_RATE_16MHZ_TICKS (16.0/TIMER_RATE_MHZ)     // 16.0/24.0 = 0.6666
+#define TIMER_RATE_16MHZ_TICKS (16.0/TIMER_RATE_MHZ)     // 16.0/TIMER_RATE_MHZ
 const double timerRate16MHzTicks TIMER_RATE_16MHZ_TICKS; // make sure this is pre-calculated
 
 // prepare to set Axis1/2 hw timers to interval (in 1/16 microsecond units)
@@ -124,17 +180,13 @@ void PresetTimerInterval(long iv, bool TPS, volatile uint32_t *nextRate, volatil
 
   double fiv = iv/timerRate16MHzTicks;
   uint32_t reps = (fiv/4194304.0)+1.0;
-  uint32_t i = fiv/reps;
+  uint32_t i = fiv/reps-1.0; // has -1 since this is dropped right into a timer register
   cli(); *nextRate=i; *nextRep=reps; sei();
 }
 
-// Must work from within the motor ISR timers, in microseconds*(F_COMP/1000000.0) units
-void QuickSetIntervalAxis1(uint32_t r) {
-  itimer3.update((float)r * 0.0625);
-}
-void QuickSetIntervalAxis2(uint32_t r) {
-  itimer4.update((float)r * 0.0625);
-}
+// Must work from within the motor ISR timers, in tick units
+#define QuickSetIntervalAxis1(r) (PIT_LDVAL1=r)
+#define QuickSetIntervalAxis2(r) (PIT_LDVAL2=r)
 
 // --------------------------------------------------------------------------------------------------
 // Fast port writing help, etc.

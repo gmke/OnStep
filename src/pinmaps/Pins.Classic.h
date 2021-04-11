@@ -3,13 +3,17 @@
 
 #if defined(__AVR_ATmega2560__)
 
+#if PINMAP == ClassicInstein
+  #warning "This an an highly experimental PINMAP, use at your own risk!!!"
+#endif
+
 // Misc. pins
 #if defined(ST4_ALTERNATE_PINS_ON) || (PINMAP == ClassicShield)
   #ifndef DS3234_CS_PIN
-    #define DS3234_CS_PIN      53     // Default CS Pin for DS3234 on SPI
+    #define DS3234_CS_PIN    53     // Default CS Pin for DS3234 on SPI
   #endif
   #ifndef BME280_CS_PIN
-    #define BME280_CS_PIN      48     // Default CS Pin for BME280 on SPI
+    #define BME280_CS_PIN    48     // Default CS Pin for BME280 on SPI
   #endif
 #endif
 
@@ -82,31 +86,36 @@
 #define Axis2_FAULT          31     // SPI MISO/Fault
 
 // Pins to rotator stepper driver
-#define Axis3_EN             -1     // Enable
+#define Axis3_EN            OFF     // Enable
 #define Axis3_STEP           A9     // Step
 #define Axis3_DIR            A8     // Dir
 
 // Pins to focuser1 stepper driver
-#define Axis4_EN             -1     // Enable
+#define Axis4_EN            OFF     // Enable
 #define Axis4_STEP          A11     // Step
 #define Axis4_DIR           A10     // Dir
 
 // Pins to focuser2 stepper driver
-#define Axis5_EN             -1     // Enable
+#define Axis5_EN            OFF     // Enable
 #define Axis5_STEP          A13     // Step
 #define Axis5_DIR           A12     // Dir
 
 // ST4 interface
 #if defined(ST4_ALTERNATE_PINS_ON) || (PINMAP == ClassicShield)
-  #define ST4RAw               47     // ST4 RA- West
-  #define ST4DEs               43     // ST4 DE- South
-  #define ST4DEn               45     // ST4 DE+ North
-  #define ST4RAe               49     // ST4 RA+ East
+  #define ST4RAw             47     // ST4 RA- West
+  #define ST4DEs             43     // ST4 DE- South
+  #define ST4DEn             45     // ST4 DE+ North
+  #define ST4RAe             49     // ST4 RA+ East
+#elif PINMAP == ClassicInstein
+  #define ST4RAw             49     // Socket RJ12 Pin 3 RA- West
+  #define ST4DEs             43     // Socket RJ12 Pin 4 DE- South
+  #define ST4DEn             47     // Socket RJ12 Pin 5 DE+ North
+  #define ST4RAe             45     // Socket RJ12 Pin 6 RA+ East
 #else
-  #define ST4RAw               47     // ST4 RA- West
-  #define ST4DEs               49     // ST4 DE- South
-  #define ST4DEn               51     // ST4 DE+ North
-  #define ST4RAe               53     // ST4 RA+ East
+  #define ST4RAw             47     // ST4 RA- West
+  #define ST4DEs             49     // ST4 DE- South
+  #define ST4DEn             51     // ST4 DE+ North
+  #define ST4RAe             53     // ST4 RA+ East
 #endif
 
 #elif defined(__MK20DX256__) || defined(__MK64FX512__) || defined(__MK66FX1M0__)
@@ -132,9 +141,9 @@
 
 // Obsolete pins that would power stepper drivers in the old days
 #define POWER_SUPPLY_PINS_OFF
-#define Axis15vPin    11    // Pin 11 (3.3V)
-#define Axis25vPin     5    // Pin 5 (3.3V)
-#define Axis2GndPin    7    // Pin 7 (GND)
+#define Axis15vPin           11     // Pin 11 (3.3V)
+#define Axis25vPin            5     // Pin 5 (3.3V)
+#define Axis2GndPin           7     // Pin 7 (GND)
 
 // Axis1 RA/Azm step/dir driver
 #define Axis1_EN             16     // Enable
@@ -157,11 +166,12 @@
 #define Axis2_DIR             4     // Dir
 
 // For rotator stepper driver
-#define Axis3_EN             -1     // Enable
+#define Axis3_EN            OFF     // Enable
 #define Axis3_STEP           30     // Step
 #define Axis3_DIR            33     // Dir
 
 // For focuser1 stepper driver  
+#define Axis4_EN            OFF     // Enable
 #if defined(__MK64FX512__) || defined(__MK66FX1M0__)
   // teensy3.5/3.6
   #define Axis4_STEP         34     // Step
@@ -171,12 +181,11 @@
   #define Axis4_STEP         31     // Step
   #define Axis4_DIR          32     // Dir
 #endif
-#define Axis4_EN             -1     // Enable
 
 // For focuser2 stepper driver
+#define Axis5_EN            OFF     // Enable
 #define Axis5_STEP           30     // Step
 #define Axis5_DIR            33     // Dir
-#define Axis5_EN             -1     // Enable
 
 // ST4 interface
 #define ST4RAw               24     // ST4 RA- West

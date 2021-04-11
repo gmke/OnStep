@@ -46,9 +46,9 @@ void initGuide() {
 
 #if ST4_INTERFACE == ON || ST4_INTERFACE == ON_PULLUP
   #if ST4_INTERFACE == ON
-    boolean pullup=false;
+    bool pullup=false;
   #else
-    boolean pullup=true;
+    bool pullup=true;
   #endif
   st4n.init(ST4DEn,debounceMs,pullup); // active low is default (true)
   st4s.init(ST4DEs,debounceMs,pullup);
@@ -72,7 +72,7 @@ void guide() {
         if (guideTimeRemainingAxis1 > 0) {
           guideTimeRemainingAxis1-=(long)(micros()-guideTimeThisIntervalAxis1);
           guideTimeThisIntervalAxis1=micros();
-          if (guideTimeRemainingAxis1 <= 0) { guideDirAxis1='b'; } // break
+          if (guideTimeRemainingAxis1 <= 0) stopGuideAxis1();
         }
       } else {
         // don't count time if in backlash
@@ -86,7 +86,7 @@ void guide() {
         if (guideTimeRemainingAxis2 > 0) {
           guideTimeRemainingAxis2-=(long)(micros()-guideTimeThisIntervalAxis2);
           guideTimeThisIntervalAxis2=micros();
-          if (guideTimeRemainingAxis2 <= 0) { guideDirAxis2='b'; }  // break 
+          if (guideTimeRemainingAxis2 <= 0) stopGuideAxis2();
         }
       } else {
         // don't count time if in backlash
@@ -101,9 +101,30 @@ void guide() {
   }
 }
 
+// returns true if a spiral guide is happening
+bool lastGuideSpiralGuide = false;
+bool isSpiralGuiding() {
+  if ((guideDirAxis1 || guideDirAxis2) && lastGuideSpiralGuide) return true; else { 
+    if (lastGuideSpiralGuide) { lastGuideSpiralGuide=false; guideTimerCustomRateAxis1=0.0; guideTimerCustomRateAxis2=0.0; }
+    return false;
+  }
+}
+
+// returns true if a pulse guide is happening
+bool lastGuidePulseGuideAxis1 = false;
+bool lastGuidePulseGuideAxis2 = false;
+bool isPulseGuiding() {
+  if ((guideDirAxis1 && lastGuidePulseGuideAxis1) || (guideDirAxis2 && lastGuidePulseGuideAxis2)) return true; else return false;
+}
+
+// returns true if a guide is happening and active (breaking is considered false)
+bool isGuiding() {
+  if (guideDirAxis1 == 'e' || guideDirAxis1 == 'w' || guideDirAxis2 == 'n' || guideDirAxis2 == 's') return true; else return false;
+}
+
 // returns true if rapid movement is happening
-boolean isSlewing() {
-  return ((guideDirAxis1 != 0) && (fabs(guideTimerRateAxis1) >= 2)) || ((guideDirAxis2 != 0) && (fabs(guideTimerRateAxis2) >= 2)) || (trackingState == TrackingMoveTo);
+bool isSlewing() {
+  return guideDirAxis1 || guideDirAxis2 || trackingState == TrackingMoveTo || trackingSyncInProgress();
 }
 
 // reactivate or deactivate backlash comp. if necessary
@@ -125,14 +146,19 @@ void deactivateBacklashComp() {
 }
 
 // start a guide in RA or Azm, direction must be 'e', 'w', or 'b', guideRate is the rate selection (0 to 9), guideDuration is in ms (0 to ignore) 
-CommandErrors startGuideAxis1(char direction, int guideRate, long guideDuration) {
-  // Check state
-  if (faultAxis1)                       return CE_SLEW_ERR_HARDWARE_FAULT;
-  if (!axis1Enabled)                    return CE_SLEW_ERR_IN_STANDBY;
-  if (parkStatus == Parked)             return CE_SLEW_ERR_IN_PARK;
-  if (trackingSyncInProgress())         return CE_MOUNT_IN_MOTION;
-  if (trackingState == TrackingMoveTo)  return CE_MOUNT_IN_MOTION;
-  if (direction == guideDirAxis1)       return CE_NONE;
+CommandErrors startGuideAxis1(char direction, int guideRate, long guideDuration, bool pulseGuide) {
+  // Translate rate setting
+  if (guideRate == GR_GUIDE) guideRate=guideRateSelection; else if (guideRate == GR_PULSEGUIDE) guideRate=pulseGuideRateSelection;
+
+  if (faultAxis1)                         return CE_SLEW_ERR_HARDWARE_FAULT;
+  if (!axis1Enabled)                      return CE_SLEW_ERR_IN_STANDBY;
+  if (parkStatus == Parked)               return CE_SLEW_ERR_IN_PARK;
+  if (trackingSyncInProgress())           return CE_MOUNT_IN_MOTION;
+  if (trackingState == TrackingMoveTo)    return CE_MOUNT_IN_MOTION;
+  if (isSpiralGuiding())                  return CE_MOUNT_IN_MOTION;
+  if (direction == guideDirAxis1)         return CE_NONE;
+  if (direction == 'e' && !guideEastOk()) return CE_SLEW_ERR_OUTSIDE_LIMITS;
+  if (direction == 'w' && !guideWestOk()) return CE_SLEW_ERR_OUTSIDE_LIMITS;
   if (guideRate < 3 && (generalError == ERR_ALT_MIN ||
                         generalError == ERR_LIMIT_SENSE ||
                         generalError == ERR_DEC ||
@@ -140,15 +166,16 @@ CommandErrors startGuideAxis1(char direction, int guideRate, long guideDuration)
                         generalError == ERR_UNDER_POLE ||
                         generalError == ERR_MERIDIAN ||
                         generalError == ERR_ALT_MAX)) return CE_SLEW_ERR_OUTSIDE_LIMITS;
-  
+
   if (guideRate < 3) deactivateBacklashComp(); else reactivateBacklashComp();
-  enableGuideRate(guideRate);
+  activateGuideRateSelection(guideRate);
   guideDirAxis1=direction;
   guideTimeThisIntervalAxis1=micros();
   guideTimeRemainingAxis1=guideDuration*1000L;
   cli();
   if (guideDirAxis1 == 'e') guideTimerRateAxis1=-guideTimerBaseRateAxis1; else guideTimerRateAxis1=guideTimerBaseRateAxis1; 
   sei();
+  lastGuidePulseGuideAxis1 = pulseGuide;
   
   return CE_NONE;
 }
@@ -159,17 +186,19 @@ void stopGuideAxis1() {
 }
 
 // start a guide in Dec or Alt, direction must be 'n', 's', or 'b', guideRate is the rate selection (0 to 9), guideDuration is in ms (0 to ignore) 
-CommandErrors startGuideAxis2(char direction, int guideRate, long guideDuration, bool absolute) {
+CommandErrors startGuideAxis2(char direction, int guideRate, long guideDuration, bool pulseGuide, bool absolute) {
+  // Translate rate setting
+  if (guideRate == GR_GUIDE) guideRate=guideRateSelection; else if (guideRate == GR_PULSEGUIDE) guideRate=pulseGuideRateSelection;
+
   if (faultAxis2)                          return CE_SLEW_ERR_HARDWARE_FAULT;
   if (!axis1Enabled)                       return CE_SLEW_ERR_IN_STANDBY;
   if (parkStatus == Parked)                return CE_SLEW_ERR_IN_PARK;
   if (trackingSyncInProgress())            return CE_MOUNT_IN_MOTION;
   if (trackingState == TrackingMoveTo)     return CE_MOUNT_IN_MOTION;
+  if (isSpiralGuiding())                   return CE_MOUNT_IN_MOTION;
   if (direction == guideDirAxis2)          return CE_NONE;
-#if AXIS2_TANGENT_ARM == ON
   if (direction == 'n' && !guideNorthOk()) return CE_SLEW_ERR_OUTSIDE_LIMITS;
   if (direction == 's' && !guideSouthOk()) return CE_SLEW_ERR_OUTSIDE_LIMITS;
-#endif
   if (guideRate < 3 && (generalError == ERR_ALT_MIN ||
                         generalError == ERR_LIMIT_SENSE ||
                         generalError == ERR_DEC ||
@@ -178,33 +207,50 @@ CommandErrors startGuideAxis2(char direction, int guideRate, long guideDuration,
                         generalError == ERR_MERIDIAN ||
                         generalError == ERR_ALT_MAX)) return CE_SLEW_ERR_OUTSIDE_LIMITS;
 
-  enableGuideRate(guideRate);
+  activateGuideRateSelection(guideRate);
   if (guideRate < 3) deactivateBacklashComp(); else reactivateBacklashComp();
   guideDirAxis2=direction;
   guideTimeThisIntervalAxis2=micros();
   guideTimeRemainingAxis2=guideDuration*1000L;
   if (guideDirAxis2 == 's') { cli(); guideTimerRateAxis2=-guideTimerBaseRateAxis2; sei(); } 
   if (guideDirAxis2 == 'n') { cli(); guideTimerRateAxis2= guideTimerBaseRateAxis2; sei(); }
-  if (!absolute && (getInstrPierSide() == PierSideWest)) { cli(); guideTimerRateAxis2=-guideTimerRateAxis2; sei(); }
-
+  if (!absolute && (getInstrPierSide() == PIER_SIDE_WEST)) { cli(); guideTimerRateAxis2=-guideTimerRateAxis2; sei(); }
+  lastGuidePulseGuideAxis2 = pulseGuide;
+  
   return CE_NONE;
 }
 
-#if AXIS2_TANGENT_ARM == ON
 bool guideNorthOk() {
-  if (posAxis2/AXIS2_STEPS_PER_DEGREE < AXIS2_LIMIT_MIN && getInstrPierSide() == PierSideWest) return false;
-  if (posAxis2/AXIS2_STEPS_PER_DEGREE > AXIS2_LIMIT_MAX && getInstrPierSide() == PierSideEast) return false;
+  if (!safetyLimitsOn) return true;
+  double a2; if (AXIS2_TANGENT_ARM == ON) { cli(); a2=posAxis2/axis2Settings.stepsPerMeasure; sei(); } else a2=getInstrAxis2();
+  if (a2 < axis2Settings.min && getInstrPierSide() == PIER_SIDE_WEST) return false;
+  if (a2 > axis2Settings.max && getInstrPierSide() == PIER_SIDE_EAST) return false;
+  if (mountType == ALTAZM && currentAlt > maxAlt) return false;
   return true;
 }
 bool guideSouthOk() {
-  if (posAxis2/AXIS2_STEPS_PER_DEGREE < AXIS2_LIMIT_MIN && getInstrPierSide() == PierSideEast) return false;
-  if (posAxis2/AXIS2_STEPS_PER_DEGREE > AXIS2_LIMIT_MAX && getInstrPierSide() == PierSideWest) return false;
+  if (!safetyLimitsOn) return true;
+  double a2; if (AXIS2_TANGENT_ARM == ON) { cli(); a2=posAxis2/axis2Settings.stepsPerMeasure; sei(); } else a2=getInstrAxis2();
+  if (a2 < axis2Settings.min && getInstrPierSide() == PIER_SIDE_EAST) return false;
+  if (a2 > axis2Settings.max && getInstrPierSide() == PIER_SIDE_WEST) return false;
+  if (mountType == ALTAZM && currentAlt < minAlt) return false;
   return true;
 }
-#endif
+bool guideEastOk() {
+  if (!safetyLimitsOn) return true;
+  if (meridianFlip != MeridianFlipNever && getInstrPierSide() == PIER_SIDE_EAST) { if (getInstrAxis1() < -degreesPastMeridianE) return false; }
+  if (getInstrAxis1() < axis1Settings.min) return false;
+  return true;
+}
+bool guideWestOk() {
+  if (!safetyLimitsOn) return true;
+  if (meridianFlip != MeridianFlipNever && getInstrPierSide() == PIER_SIDE_WEST) { if (getInstrAxis1() > degreesPastMeridianW) return false; }
+  if (getInstrAxis1() > axis1Settings.max) return false;
+  return true;
+}
 
-CommandErrors startGuideAxis2(char direction, int guideRate, long guideDuration) {
-  return startGuideAxis2(direction, guideRate, guideDuration, false);
+CommandErrors startGuideAxis2(char direction, int guideRate, long guideDuration, bool pulseGuide) {
+  return startGuideAxis2(direction, guideRate, guideDuration, pulseGuide, false);
 }
 
 // stops guide in Dec or Alt
@@ -214,17 +260,16 @@ void stopGuideAxis2() {
 
 // start a guide spiral, guideRate is the rate selection (0 to 9), guideDuration is in ms (0 to ignore) 
 double spiralScaleAxis1=0;
-CommandErrors startGuideSpiral(int guideRate, long guideDuration) {
+CommandErrors startGuideSpiral(long guideDuration) {
   if (faultAxis1 || faultAxis2)            return CE_SLEW_ERR_HARDWARE_FAULT;
   if (!axis1Enabled)                       return CE_SLEW_ERR_IN_STANDBY;
   if (parkStatus == Parked)                return CE_SLEW_ERR_IN_PARK;
   if (trackingSyncInProgress())            return CE_MOUNT_IN_MOTION;
   if (trackingState == TrackingMoveTo)     return CE_MOUNT_IN_MOTION;
   if (guideDirAxis1 || guideDirAxis2)      { if (spiralGuide) stopGuideSpiral(); return CE_NONE; }
+  if (isSpiralGuiding())                   return CE_MOUNT_IN_MOTION;
   if (abs(getInstrAxis2() > 75.0))         return CE_SLEW_ERR_OUTSIDE_LIMITS;
-#if AXIS2_TANGENT_ARM == ON
   if (!guideNorthOk() || !guideSouthOk())  return CE_SLEW_ERR_OUTSIDE_LIMITS;
-#endif
   if ((generalError == ERR_ALT_MIN ||
        generalError == ERR_LIMIT_SENSE ||
        generalError == ERR_DEC ||
@@ -233,7 +278,7 @@ CommandErrors startGuideSpiral(int guideRate, long guideDuration) {
        generalError == ERR_MERIDIAN ||
        generalError == ERR_ALT_MAX))       return CE_SLEW_ERR_OUTSIDE_LIMITS;
 
-  spiralGuide = guideRate;
+  spiralGuide = guideRateSelection;
   if (spiralGuide < 3) spiralGuide=3;
   if (spiralGuide > 8) spiralGuide=8;
 
@@ -246,6 +291,7 @@ CommandErrors startGuideSpiral(int guideRate, long guideDuration) {
   spiralScaleAxis1=cos(getInstrAxis2()/Rad);
 
   guideSpiralPoll();
+  lastGuideSpiralGuide=true;
 
   return CE_NONE;
 }
@@ -253,10 +299,8 @@ CommandErrors startGuideSpiral(int guideRate, long guideDuration) {
 // stop guide spiral
 void stopGuideSpiral() {
   spiralGuide=0;
-  cli();
-  if (guideDirAxis1) guideDirAxis1='b';
-  if (guideDirAxis2) guideDirAxis2='b';
-  sei();
+  stopGuideAxis1();
+  stopGuideAxis2();
 }
 
 // set guide spiral rates in RA/Azm and Dec/Alt, rate is in x-sidereal, guideElapsed time is in ms 
@@ -293,7 +337,7 @@ void guideSpiralPoll() {
   if (guideTimerCustomRateAxis1 > rateXPerSec) guideTimerCustomRateAxis1=rateXPerSec;
 
   // activate the new guide rates
-  enableGuideRate(-1);
+  activateGuideRateSelection(GR_CUSTOM);
   if (guideDirAxis1 == 'e') { cli(); guideTimerRateAxis1=-guideTimerBaseRateAxis1; sei(); }
   if (guideDirAxis1 == 'w') { cli(); guideTimerRateAxis1= guideTimerBaseRateAxis1; sei(); }
   if (guideDirAxis2 == 's') { cli(); guideTimerRateAxis2=-guideTimerBaseRateAxis2; sei(); } 
@@ -303,7 +347,7 @@ void guideSpiralPoll() {
 // custom guide rate in RA or Azm, rate is in x-sidereal, guideDuration is in ms (0 to ignore) 
 bool customGuideRateAxis1(double rate, long guideDuration) {
   guideTimerCustomRateAxis1=rate;
-  enableGuideRate(-1);
+  activateGuideRateSelection(GR_CUSTOM);
   if ((parkStatus == NotParked) && (trackingState != TrackingMoveTo) && (axis1Enabled) && (guideDirAxis1)) {
     guideTimeThisIntervalAxis1=micros();
     guideTimeRemainingAxis1=guideDuration*1000L;
@@ -316,47 +360,51 @@ bool customGuideRateAxis1(double rate, long guideDuration) {
 // custom guide rate in Dec or Alt, rate is in x-sidereal, guideDuration is in ms (0 to ignore)
 bool customGuideRateAxis2(double rate, long guideDuration) {
   guideTimerCustomRateAxis2=rate;
-  enableGuideRate(-1);
+  activateGuideRateSelection(GR_CUSTOM);
   if ((parkStatus == NotParked) && (trackingState != TrackingMoveTo) && (axis2Enabled) && (guideDirAxis2)) {
     guideTimeThisIntervalAxis2=micros();
     guideTimeRemainingAxis2=guideDuration*1000L;
     if (guideDirAxis2 == 's') { cli(); guideTimerRateAxis2=-guideTimerBaseRateAxis2; sei(); } 
     if (guideDirAxis2 == 'n') { cli(); guideTimerRateAxis2= guideTimerBaseRateAxis2; sei(); }
-    if (getInstrPierSide() == PierSideWest) { cli(); guideTimerRateAxis2=-guideTimerRateAxis2; sei(); }
+    if (getInstrPierSide() == PIER_SIDE_WEST) { cli(); guideTimerRateAxis2=-guideTimerRateAxis2; sei(); }
   } else return false;
   return true;
 }
 
 // sets the rates for guide commands
-void setGuideRate(int g) {
-  currentGuideRate=g;
-  if ((g <= GuideRate1x) && (currentPulseGuideRate != g)) { currentPulseGuideRate=g; nv.update(EE_pulseGuideRate,g); }
-  guideTimerCustomRateAxis1=0.0;
-  guideTimerCustomRateAxis2=0.0;
+// custom rates have a special "guideRateSelection" value
+void setGuideRateSelection(int g) {
+  guideRateSelection=g;
+  if (g <= GR_1X) setPulseGuideRateSelection(g);
+  if (!isSpiralGuiding()) { guideTimerCustomRateAxis1=0.0; guideTimerCustomRateAxis2=0.0; }
 }
 
 // gets the rate for guide commands
-int getGuideRate() {
-  return currentGuideRate;
+int getGuideRateSelection() {
+  return guideRateSelection;
+}
+
+// sets the rates for pulse-guide commands
+void setPulseGuideRateSelection(int g) {
+  if (pulseGuideRateSelection != g) { pulseGuideRateSelection=g; nv.update(EE_pulseGuideRate,g); }
 }
 
 // gets the rate for pulse-guide commands
-int getPulseGuideRate() {
+int getPulseGuideRateSelection() {
 #if SEPARATE_PULSE_GUIDE_RATE == ON
-  return currentPulseGuideRate; 
+  return pulseGuideRateSelection; 
 #else
-  return currentGuideRate;
+  return guideRateSelection;
 #endif
 }
 
-// enables the guide rate
-// -1 to use guideTimerCustomRateAxis1/2, otherwise rates are:
+// activates the guide rate selection
+// GR_CUSTOM to use guideTimerCustomRateAxis1/2, otherwise rates are:
 // 0=.25X 1=.5x 2=1x 3=2x 4=4x 5=8x 6=24x 7=48x 8=half-MaxRate 9=MaxRate
-void enableGuideRate(int g) {
-  // don't do these calculations unless we have to
-  if (activeGuideRate == g) return;
-
-  if (g >= 0) activeGuideRate=g;
+void activateGuideRateSelection(int g) {
+  if (g == activeGuideRateSelection) return;
+  
+  if (g != GR_CUSTOM) activeGuideRateSelection=g;
 
   // this enables the guide rates
   if (guideTimerCustomRateAxis1 != 0.0) {
@@ -369,8 +417,8 @@ void enableGuideRate(int g) {
   } else {
     guideTimerBaseRateAxis2=(double)(guideRates[g]/15.0);
   }
-  amountGuideAxis1.fixed=doubleToFixed((guideTimerBaseRateAxis1*StepsPerSecondAxis1)/100.0);
-  amountGuideAxis2.fixed=doubleToFixed((guideTimerBaseRateAxis2*StepsPerSecondAxis2)/100.0);
+  amountGuideAxis1.fixed=doubleToFixed((guideTimerBaseRateAxis1*stepsPerSecondAxis1)/100.0);
+  amountGuideAxis2.fixed=doubleToFixed((guideTimerBaseRateAxis2*stepsPerSecondAxis2)/100.0);
 }
 
 // handle the ST4 interface and hand controller features
@@ -378,7 +426,7 @@ void ST4() {
 #if ST4_INTERFACE == ON || ST4_INTERFACE == ON_PULLUP
   // get ST4 button presses
   st4e.poll();
-  static boolean shcActive=false;
+  static bool shcActive=false;
   if (!shcActive) {
     st4w.poll();
     st4n.poll();
@@ -396,16 +444,17 @@ void ST4() {
         digitalWrite(ST4DEs,HIGH); // idle
         shcActive=true;
         SerialST4.begin();
+        VLF("MSG: SerialST4 mode activated");
       }
       return;
     } else { 
       char c=SerialST4.poll();
 
       // process any single byte guide commands
-      if (c == ccMe) startGuideAxis1('e',currentGuideRate,GUIDE_TIME_LIMIT*1000);
-      if (c == ccMw) startGuideAxis1('w',currentGuideRate,GUIDE_TIME_LIMIT*1000);
-      if (c == ccMn) startGuideAxis2('n',currentGuideRate,GUIDE_TIME_LIMIT*1000);
-      if (c == ccMs) startGuideAxis2('s',currentGuideRate,GUIDE_TIME_LIMIT*1000);
+      if (c == ccMe) startGuideAxis1('e',GR_GUIDE,GUIDE_TIME_LIMIT*1000,false);
+      if (c == ccMw) startGuideAxis1('w',GR_GUIDE,GUIDE_TIME_LIMIT*1000,false);
+      if (c == ccMn) startGuideAxis2('n',GR_GUIDE,GUIDE_TIME_LIMIT*1000,false);
+      if (c == ccMs) startGuideAxis2('s',GR_GUIDE,GUIDE_TIME_LIMIT*1000,false);
       if ((c == ccQe) || (c == ccQw)) stopGuideAxis1();
       if ((c == ccQn) || (c == ccQs)) stopGuideAxis2();
       
@@ -422,6 +471,7 @@ void ST4() {
       #endif
       shcActive=false;
       SerialST4.end();
+      VLF("MSG: SerialST4 mode deactivated");
       return;
     }
   }
@@ -448,7 +498,7 @@ void ST4() {
     // make sure no cmdSend() is being processed
     if (!cmdWaiting()) {
       if (altModeA) {
-        int c=currentGuideRate;
+        int c=guideRateSelection;
         if (st4w.wasPressed() && !st4e.wasPressed()) {
           if (trackingState == TrackingNone) cmdSend(":B+#",true); else { if (c >= 7) c=8; else if (c >= 5) c=7; else if (c >= 2) c=5; else if (c < 2) c=2; }
           soundClick();
@@ -465,7 +515,7 @@ void ST4() {
           if (trackingState == TrackingSidereal) { trackingState=TrackingNone; disableStepperDrivers(); soundClick(); } else
           if (trackingState == TrackingNone) { trackingState=TrackingSidereal; enableStepperDrivers(); soundClick(); }
         }
-        if (c != currentGuideRate) { setGuideRate(c); enableGuideRate(c); }
+        if (c != guideRateSelection) { setGuideRateSelection(c); activateGuideRateSelection(c); }
       }
       if (altModeB) {
 #if ST4_HAND_CONTROL_FOCUSER == ON
@@ -511,13 +561,13 @@ void ST4() {
         if (newDirAxis1 != 'b') {
 #if ST4_HAND_CONTROL == ON
           if (waitingHome) waitingHomeContinue=true; else
-          if (trackingState == TrackingMoveTo) { if (!abortSlew) abortSlew=StartAbortSlew; } else
+          if (trackingState == TrackingMoveTo) { if (!abortGoto) abortGoto=StartAbortGoto; } else
 #endif
             {
 #if SEPARATE_PULSE_GUIDE_RATE == ON && ST4_HAND_CONTROL != ON
-            startGuideAxis1(newDirAxis1,currentPulseGuideRate,GUIDE_TIME_LIMIT*1000);
+            startGuideAxis1(newDirAxis1,GR_PLUSEGUIDE,GUIDE_TIME_LIMIT*1000,false);
 #else
-            startGuideAxis1(newDirAxis1,currentGuideRate,GUIDE_TIME_LIMIT*1000);
+            startGuideAxis1(newDirAxis1,GR_GUIDE,GUIDE_TIME_LIMIT*1000,false);
 #endif
           }
         } else stopGuideAxis1();
@@ -534,13 +584,13 @@ void ST4() {
         if (newDirAxis2 != 'b') {
 #if ST4_HAND_CONTROL == ON
           if (waitingHome) waitingHomeContinue=true; else
-          if (trackingState == TrackingMoveTo) { if (!abortSlew) abortSlew=StartAbortSlew; } else
+          if (trackingState == TrackingMoveTo) { if (!abortGoto) abortGoto=StartAbortGoto; } else
 #endif
           {
 #if SEPARATE_PULSE_GUIDE_RATE == ON && ST4_HAND_CONTROL != ON
-            startGuideAxis2(newDirAxis2,currentPulseGuideRate,GUIDE_TIME_LIMIT*1000);
+            startGuideAxis2(newDirAxis2,GR_PULSEGUIDE,GUIDE_TIME_LIMIT*1000,false);
 #else
-            startGuideAxis2(newDirAxis2,currentGuideRate,GUIDE_TIME_LIMIT*1000);
+            startGuideAxis2(newDirAxis2,GR_GUIDE,GUIDE_TIME_LIMIT*1000,false);
 #endif
           }
         } else stopGuideAxis2();

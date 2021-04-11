@@ -56,7 +56,7 @@ void handlePec() {
   data += FPSTR(html_bodyB);
   sendHtml(data);
 
-  if (mountStatus.mountType()!=MT_ALTAZM) {
+  if (mountStatus.pecEnabled()) {
     // active ajax page is: pecAjax();
     data +="<script>var ajaxPage='pec.txt';</script>\n";
     data +=FPSTR(html_ajax_active);
@@ -90,7 +90,7 @@ void handlePec() {
 
   data += FPSTR(html_pec1);
 
-  if (mountStatus.mountType()!=MT_ALTAZM) {
+  if (mountStatus.pecEnabled()) {
     data += FPSTR(html_pec2);
     data += FPSTR(html_pecControls0);
     data += FPSTR(html_pecControls1);
@@ -138,8 +138,8 @@ void processPecGet() {
   String v;
 
   // PEC control
-  v=server.arg("pe");
-  if (v != "") {
+  v = server.arg("pe");
+  if (v != EmptyStr) {
     if (v == "pl") commandBlind(":$QZ+#"); // play
     if (v == "st") commandBlind(":$QZ-#"); // stop
     if (v == "re") commandBlind(":$QZ/#"); // record

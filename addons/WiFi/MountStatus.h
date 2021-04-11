@@ -7,7 +7,7 @@ enum MountTypes {MT_UNKNOWN, MT_GEM, MT_FORK, MT_FORKALT, MT_ALTAZM};
 enum Errors {
   ERR_NONE, ERR_MOTOR_FAULT, ERR_ALT_MIN, ERR_LIMIT_SENSE, ERR_DEC, ERR_AZM, 
   ERR_UNDER_POLE, ERR_MERIDIAN, ERR_SYNC, ERR_PARK, ERR_GOTO_SYNC, ERR_UNSPECIFIED,
-  ERR_ALT_MAX, ERR_WEATHER_INIT, ERR_SITE_INIT};
+  ERR_ALT_MAX, ERR_WEATHER_INIT, ERR_SITE_INIT, ERR_NV_INIT};
 
 #define PierSideNone     0
 #define PierSideEast     1
@@ -48,6 +48,7 @@ class MountStatus {
       _pecPlaying  = strstr(s,"~");
       _pecReadyRec = strstr(s,";");
       _pecRecording= strstr(s,"^");
+      if (!_pecRecording && !_pecReadyRec && !_pecPlaying && !_pecReadyPlay && !_pecIgnore && !_pecRecorded) _pecEnabled=false; else _pecEnabled=true;
     
       _toEncOnly   = strstr(s,"e");
       _atHome      = strstr(s,"H");
@@ -133,6 +134,7 @@ class MountStatus {
     bool parked() { return _parked; }
     bool parking() { return _parking; }
     bool parkFail() { return _parkFail; }
+    bool pecEnabled() { return _pecEnabled; }
     bool pecIgnore() { return _pecIgnore; }
     bool pecReadyPlay() { return _pecReadyPlay; }
     bool pecPlaying() { return _pecPlaying; }
@@ -143,6 +145,8 @@ class MountStatus {
     bool atHome() { return _atHome; }
     bool ppsSync() { return _ppsSync; }
     bool guiding() { return _guiding; }
+
+    bool focuserPresent() { return commandBool(":FA#"); }
 
     bool axisFault() { return _axisFault; }
     bool axisStatusValid() { return _validStepperDriverStatus; }
@@ -193,7 +197,7 @@ class MountStatus {
         if (scan_features) {
           sprintf(s1,":GXY%d#",i+1);
           if (!command(s1,s) || s[0]==0) _valid=false;
-          if (!_valid) { for (uint8_t j=0; j<8; j++) _feature[j].purpose=0; return false; }
+          if (!_valid) { for (uint8_t j=0; j<8; j++) _feature[j].purpose=0; _featureFound=false; return false; }
 
           if (strlen(s) > 1) {
             purpose_str = strstr(s,",");
@@ -203,7 +207,7 @@ class MountStatus {
             } else _valid=false;
             char *name_str = s; if (!name_str) _valid=false;
 
-            if (!_valid) { for (uint8_t j=0; j<8; j++) _feature[j].purpose=0; return false; }
+            if (!_valid) { for (uint8_t j=0; j<8; j++) _feature[j].purpose=0; _featureFound=false; return false; }
 
             if (strlen(name_str)>10) name_str[11]=0;
             strcpy(_feature[i].name,name_str);
@@ -225,35 +229,33 @@ class MountStatus {
         char *value4_str=NULL;
         char s[40],s1[40];
 
-        if (all || (_feature[i].purpose == ANALOG_OUTPUT || _feature[i].purpose == DEW_HEATER || _feature[i].purpose == INTERVALOMETER)) {
+        if (all || (_feature[i].purpose == SWITCH || _feature[i].purpose == ANALOG_OUTPUT || _feature[i].purpose == DEW_HEATER || _feature[i].purpose == INTERVALOMETER)) {
           sprintf(s1,":GXX%d#",i+1);
-          if (!command(s1,s) || s[0]==0) _valid=false;
+          if (!command(s1,s) || strlen(s) == 0) _valid=false;
           if (!_valid) { for (uint8_t j=0; j<8; j++) _feature[j].purpose=0; return false; }
   
-          if (strlen(s) > 0) {
-            value2_str = strstr(s,",");
-            if (value2_str) {
-              value2_str[0]=0;
-              value2_str++;
-              value3_str = strstr(value2_str,",");
-              if (value3_str) {
-                value3_str[0]=0;
-                value3_str++;
-                value4_str = strstr(value3_str,",");
-                if (value4_str) {
-                  value4_str[0]=0;
-                  value4_str++;
-                }
+          value2_str = strstr(s,",");
+          if (value2_str) {
+            value2_str[0]=0;
+            value2_str++;
+            value3_str = strstr(value2_str,",");
+            if (value3_str) {
+              value3_str[0]=0;
+              value3_str++;
+              value4_str = strstr(value3_str,",");
+              if (value4_str) {
+                value4_str[0]=0;
+                value4_str++;
               }
             }
-            value1_str = s; if (!value1_str) _valid=false;
-  
-            if (_valid) {
-              if (value1_str) _feature[i].value1=atoi(value1_str);
-              if (value2_str) _feature[i].value2=atof(value2_str);
-              if (value3_str) _feature[i].value3=atof(value3_str);
-              if (value4_str) _feature[i].value4=atof(value4_str);
-            }
+          }
+          value1_str = s; if (!value1_str) _valid=false;
+
+          if (_valid) {
+            if (value1_str) _feature[i].value1=atoi(value1_str);
+            if (value2_str) _feature[i].value2=atof(value2_str);
+            if (value3_str) _feature[i].value3=atof(value3_str);
+            if (value4_str) _feature[i].value4=atof(value4_str);
           }
         }
       }
@@ -280,6 +282,7 @@ class MountStatus {
       if (_lastError==ERR_ALT_MAX) strcpy(message,L_GE_ALT_MAX); else
       if (_lastError==ERR_WEATHER_INIT) strcpy(message,L_GE_WEATHER_INIT); else
       if (_lastError==ERR_SITE_INIT) strcpy(message,L_GE_SITE_INIT); else
+      if (_lastError==ERR_NV_INIT) strcpy(message,L_GE_NV_INIT); else
         sprintf(message,L_GE_OTHER " %d",(int)_lastError);
       return message[0];
     }
@@ -305,6 +308,7 @@ class MountStatus {
     bool _parked=false;
     bool _parking=false;
     bool _parkFail=false;
+    bool _pecEnabled=false;
     bool _pecIgnore=false;
     bool _pecReadyPlay=false;
     bool _pecPlaying=false;

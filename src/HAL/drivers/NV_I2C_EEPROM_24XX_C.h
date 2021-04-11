@@ -1,15 +1,29 @@
 // -----------------------------------------------------------------------------------
-// non-volatile storage for 24LC16
-// read & write caching version of driver, uses 2.5K of RAM
+// non-volatile storage for 24XX series EEPROMS (often 4KB AT24C32 on DS3231 RTC modules with I2C address 0x57)
+// read & write caching version of driver uses 2.5K RAM at 2KB, 5K at 4KB, etc.
 
 #pragma once
 
+#ifndef NV_ENDURANCE
+  #define NV_ENDURANCE LOW
+#endif
+
 #include <Wire.h>
 
-#define I2C_EEPROM_ADDRESS 0x50
-#define E2END 2047
+// I2C EEPROM Address
+#if !defined(I2C_EEPROM_ADDRESS)
+  #define I2C_EEPROM_ADDRESS 0x57
+#endif
+
+// Time to wait after write page is requested, in milliseconds
+#if !defined(EEPROM_WRITE_WAIT)
+  #define EEPROM_WRITE_WAIT 10UL
+#endif
+
+#if !defined(E2END)
+  #define E2END 4095
+#endif
 #define CACHE_SIZE ((E2END+1)/8)
-#define I2C_CLOCK 400000
 
 #define MSB(i) (i >> 8)
 #define LSB(i) (i & 0xFF)
@@ -18,7 +32,7 @@ class nvs {
   public:    
     bool init() {
       HAL_Wire.begin();
-      HAL_Wire.setClock(I2C_CLOCK);
+      HAL_Wire.setClock(HAL_WIRE_CLOCK);
       _eeprom_addr = I2C_EEPROM_ADDRESS;
 
       // mark entire read cache as dirty
@@ -38,7 +52,7 @@ class nvs {
       int dirtyW, dirtyR;
 
       // just exit if waiting for an EEPROM write to finish
-      if ((int32_t)(millis()-nextOpMs) < 0) return;
+      if (!ee_ready()) return;
 
       // check 20 byte chunks of cache for data that needs processing so < about 2s to check the entire cache
       for (int j=0; j < 20; j++) {
@@ -61,6 +75,18 @@ class nvs {
           bitWrite(cacheReadState[i/8],i%8,0); // clean
         }
       }
+    }
+
+    bool committed() {
+      int dirtyPool=0;
+
+      // check 20 byte chunks of cache for data that needs processing so < about 2s to check the entire cache
+      for (int j=0; j < E2END; j++) {
+        dirtyPool=bitRead(cacheWriteState[j/8],j%8);
+        if (dirtyPool) break;
+      }
+
+      return !dirtyPool;
     }
 
     uint8_t read(int i) {
@@ -171,6 +197,11 @@ class nvs {
       for (int j=0; j < count; j++) { *v = read(i + j); v++; }
     }
 
+    // write count bytes to EEPROM starting at position i
+    void writeBytes(uint16_t i, byte *v, uint8_t count) {
+      for (int j=0; j < count; j++) { write(i + j,*v); v++; }
+    }
+
 private:
   // Address of the I2C EEPROM
   uint8_t _eeprom_addr;
@@ -179,20 +210,25 @@ private:
   uint8_t cacheReadState[CACHE_SIZE];
   uint8_t cacheWriteState[CACHE_SIZE];
 
-  void ee_write(int offset, byte data) {
-    while ((int32_t)(millis()-nextOpMs) < 0) {}
+  bool ee_ready() {
+    return (int32_t)(millis()-nextOpMs) >= 0;
+  }
 
+  void ee_write(int offset, byte data) {
+    while (!ee_ready()) {}
+    
     HAL_Wire.beginTransmission(_eeprom_addr);
     HAL_Wire.write(MSB(offset));
     HAL_Wire.write(LSB(offset));
     HAL_Wire.write(data);
     HAL_Wire.endTransmission();
-    nextOpMs=millis()+10UL;
+    nextOpMs=millis()+EEPROM_WRITE_WAIT;
   }
 
   void ee_read(int offset, byte *data, byte count) {
-    while ((int32_t)(millis()-nextOpMs) < 0) {}
-
+    *data = 0;
+    while (!ee_ready()) {}
+    
     HAL_Wire.beginTransmission(_eeprom_addr);
     HAL_Wire.write(MSB(offset));
     HAL_Wire.write(LSB(offset));
@@ -201,6 +237,7 @@ private:
     HAL_Wire.requestFrom(_eeprom_addr, (uint8_t)count);
     while (HAL_Wire.available()) {
       *data = HAL_Wire.read(); data++;
+      count--; if (count == 0) break;
     }
   }
 };

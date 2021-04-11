@@ -3,13 +3,50 @@
 
 #pragma once
 
-#if FileVersionConfig != 3
-  #error "Configuration (Config.h): FileVersionConfig (Config.h version) must be 3 for this OnStep."
+#if FileVersionConfig != 3 && FileVersionConfig != 4
+  #error "Configuration (Config.h): FileVersionConfig (Config.h version) must be 3 or 4 for this OnStep."
 #endif
 
 // -----------------------------------------------------------------------------------
 // -----------------------------------------------------------------------------------
 // correct for configuration backwards compatability
+
+#ifndef FEATURE1_DEFAULT_VALUE
+  #define FEATURE1_DEFAULT_VALUE OFF
+#endif
+#ifndef FEATURE2_DEFAULT_VALUE
+  #define FEATURE2_DEFAULT_VALUE OFF
+#endif
+#ifndef FEATURE3_DEFAULT_VALUE
+  #define FEATURE3_DEFAULT_VALUE OFF
+#endif
+#ifndef FEATURE4_DEFAULT_VALUE
+  #define FEATURE4_DEFAULT_VALUE OFF
+#endif
+#ifndef FEATURE5_DEFAULT_VALUE
+  #define FEATURE5_DEFAULT_VALUE OFF
+#endif
+#ifndef FEATURE6_DEFAULT_VALUE
+  #define FEATURE6_DEFAULT_VALUE OFF
+#endif
+#ifndef FEATURE7_DEFAULT_VALUE
+  #define FEATURE7_DEFAULT_VALUE OFF
+#endif
+#ifndef FEATURE8_DEFAULT_VALUE
+  #define FEATURE8_DEFAULT_VALUE OFF
+#endif
+
+#ifndef PIER_SIDE_PREFERRED_DEFAULT
+  #define PIER_SIDE_PREFERRED_DEFAULT BEST
+#endif
+
+#ifndef PIER_SIDE_SYNC_CHANGE_SIDES
+  #if SYNC_CURRENT_PIER_SIDE_ONLY == OFF
+    #define PIER_SIDE_SYNC_CHANGE_SIDES ON
+  #elif SYNC_CURRENT_PIER_SIDE_ONLY == ON
+    #define PIER_SIDE_SYNC_CHANGE_SIDES OFF
+  #endif
+#endif
 
 #if AXIS2_LIMIT_MIN == -91
   #undef AXIS2_LIMIT_MIN
@@ -21,7 +58,7 @@
   #define AXIS2_LIMIT_MAX 90
 #endif
 
-#if MOUNT_TYPE == ALTAZM
+#if mountType == ALTAZM
   #if !defined(AXIS1_LIMIT_MIN) && defined(AXIS1_LIMIT_MAXAZM)
     #define AXIS1_LIMIT_MIN -AXIS1_LIMIT_MAXAZM
     #define AXIS1_LIMIT_MAX AXIS1_LIMIT_MAXAZM
@@ -90,6 +127,25 @@
 // -----------------------------------------------------------------------------------
 // setup defaults
 
+#ifndef HOME_SENSE_HYSTERSIS
+  #define HOME_SENSE_HYSTERSIS 26
+#endif
+
+#ifndef PEC_SENSE_HYSTERSIS
+  #define PEC_SENSE_HYSTERSIS 26
+#endif
+
+#ifndef LED_RETICLE_ACTIVE_STATE
+  #define LED_RETICLE_ACTIVE_STATE LOW
+#endif
+
+// enable PEC code only if we need it
+#if AXIS1_STEPS_PER_WORMROT != 0
+  #define AXIS1_PEC ON
+#else
+  #define AXIS1_PEC OFF
+#endif
+
 // default allowed degrees past the meridian on the East and West sides of the pier
 #define AXIS1_LIMIT_MERIDIAN_E 7.5 
 #define AXIS1_LIMIT_MERIDIAN_W 7.5
@@ -101,9 +157,6 @@
 #ifndef GUIDE_SPIRAL_TIME_LIMIT
   #define GUIDE_SPIRAL_TIME_LIMIT 103.4
 #endif
-
-// automatically set MaxRate from SLEW_RATE_BASE_DESIRED
-#define MaxRateBaseDesired ((1000000.0/SLEW_RATE_BASE_DESIRED)/AXIS1_STEPS_PER_DEGREE)
 
 // automatically set focuser/rotator step rate (or focuser DC pwm freq.) from AXISn_SLEW_RATE_DESIRED
 #ifndef AXIS3_STEP_RATE_MAX
@@ -122,13 +175,6 @@
   #else
     #define AXIS5_STEP_RATE_MAX (1000.0/(AXIS5_SLEW_RATE_DESIRED*AXIS5_STEPS_PER_MICRON))
   #endif
-#endif
-
-// automatically calculate the pecBufferSize
-#if MOUNT_TYPE == ALTAZM
-  #define PEC_BUFFER_SIZE 0
-#else
-  #define PEC_BUFFER_SIZE ceil(AXIS1_STEPS_PER_WORMROT/(AXIS1_STEPS_PER_DEGREE/240.0))
 #endif
 
 // figure out how many align star are allowed for the configuration
@@ -304,6 +350,88 @@
   #define AXIS5_DRIVER_IRUN OFF
 #endif
 
+#ifndef FEATURE1_ACTIVE_UNPARKED
+  #define FEATURE1_ACTIVE_UNPARKED 0
+#endif
+#ifndef FEATURE2_ACTIVE_UNPARKED
+  #define FEATURE2_ACTIVE_UNPARKED 0
+#endif
+#ifndef FEATURE3_ACTIVE_UNPARKED
+  #define FEATURE3_ACTIVE_UNPARKED 0
+#endif
+#ifndef FEATURE4_ACTIVE_UNPARKED
+  #define FEATURE4_ACTIVE_UNPARKED 0
+#endif
+#ifndef FEATURE5_ACTIVE_UNPARKED
+  #define FEATURE5_ACTIVE_UNPARKED 0
+#endif
+#ifndef FEATURE6_ACTIVE_UNPARKED
+  #define FEATURE6_ACTIVE_UNPARKED 0
+#endif
+#ifndef FEATURE7_ACTIVE_UNPARKED
+  #define FEATURE7_ACTIVE_UNPARKED 0
+#endif
+#ifndef FEATURE8_ACTIVE_UNPARKED
+  #define FEATURE8_ACTIVE_UNPARKED 0
+#endif
+
+#ifndef FEATURE1_ACTIVE_GOTO
+  #define FEATURE1_ACTIVE_GOTO 0
+#endif
+#ifndef FEATURE2_ACTIVE_GOTO
+  #define FEATURE2_ACTIVE_GOTO 0
+#endif
+#ifndef FEATURE3_ACTIVE_GOTO
+  #define FEATURE3_ACTIVE_GOTO 0
+#endif
+#ifndef FEATURE4_ACTIVE_GOTO
+  #define FEATURE4_ACTIVE_GOTO 0
+#endif
+#ifndef FEATURE5_ACTIVE_GOTO
+  #define FEATURE5_ACTIVE_GOTO 0
+#endif
+#ifndef FEATURE6_ACTIVE_GOTO
+  #define FEATURE6_ACTIVE_GOTO 0
+#endif
+#ifndef FEATURE7_ACTIVE_GOTO
+  #define FEATURE7_ACTIVE_GOTO 0
+#endif
+#ifndef FEATURE8_ACTIVE_GOTO
+  #define FEATURE8_ACTIVE_GOTO 0
+#endif
+
+#ifndef FEATURE1_ACTIVE_STATE
+  #define FEATURE1_ACTIVE_STATE 1
+#endif
+#ifndef FEATURE2_ACTIVE_STATE
+  #define FEATURE2_ACTIVE_STATE 1
+#endif
+#ifndef FEATURE3_ACTIVE_STATE
+  #define FEATURE3_ACTIVE_STATE 1
+#endif
+#ifndef FEATURE4_ACTIVE_STATE
+  #define FEATURE4_ACTIVE_STATE 1
+#endif
+#ifndef FEATURE5_ACTIVE_STATE
+  #define FEATURE5_ACTIVE_STATE 1
+#endif
+#ifndef FEATURE6_ACTIVE_STATE
+  #define FEATURE6_ACTIVE_STATE 1
+#endif
+#ifndef FEATURE7_ACTIVE_STATE
+  #define FEATURE7_ACTIVE_STATE 1
+#endif
+#ifndef FEATURE8_ACTIVE_STATE
+  #define FEATURE8_ACTIVE_STATE 1
+#endif
+
+#if LOW != 0
+  #error "Library check: OnStep assumes LOW == 0!"
+#endif
+#if HIGH != 1 || true != 1
+  #error "Library check: OnStep assumes both true and HIGH == 1!"
+#endif
+
 // -----------------------------------------------------------------------------------
 // -----------------------------------------------------------------------------------
 // Config.h FILE VALIDATION
@@ -340,8 +468,8 @@
 
 #ifndef MOUNT_TYPE
   #error "Configuration (Config.h): Setting MOUNT_TYPE must be present!"
-#elif MOUNT_TYPE != OFF && (MOUNT_TYPE < MOUNT_TYPE_FIRST || MOUNT_TYPE > MOUNT_TYPE_LAST)
-  #error "Configuration (Config.h): Setting MOUNT_TYPE use OFF, GEM, FORK, or ALTAZM."
+#elif MOUNT_TYPE < MOUNT_TYPE_FIRST || MOUNT_TYPE > MOUNT_TYPE_LAST
+  #error "Configuration (Config.h): Setting MOUNT_TYPE use GEM, FORK, or ALTAZM."
 #endif
 
 #ifndef LED_STATUS
@@ -358,8 +486,8 @@
 
 #ifndef LED_RETICLE
   #error "Configuration (Config.h): Setting LED_RETICLE must be present!"
-#elif LED_RETICLE != OFF && LED_RETICLE != ON && (LED_RETICLE < 0 || LED_RETICLE > 255)
-  #error "Configuration (Config.h): Setting LED_RETICLE invalid, use OFF, ON, or a number between 0 and 255 (0 to 100% power.)"
+#elif LED_RETICLE != OFF && (LED_RETICLE < 0 || LED_RETICLE > 255)
+  #error "Configuration (Config.h): Setting LED_RETICLE invalid, use OFF or a number between 0 and 255 (0 to 100% power.)"
 #endif
 
 #ifndef BUZZER
@@ -380,10 +508,37 @@
   #error "Configuration (Config.h): Setting TIME_LOCATION_SOURCE invalid, use OFF or DS3231, DS3234, TEENSY, GPS only."
 #endif
 
+#if TIME_LOCATION_SOURCE == GPS
+  #ifdef SERIAL_GPS
+    #define SerialGPS SERIAL_GPS
+  #endif
+  #ifndef SerialGPS
+    #error "Configuration (Config.h): Setting SERIAL_GPS, GPS requires adding a line to identify the serial port '#define SERIAL_GPS Serial6' for example."
+  #endif
+  #ifndef SERIAL_GPS
+    #define SERIAL_GPS SerialGPS
+  #endif
+  #ifdef SerialGPSBaud
+    #define SERIAL_GPS_BAUD SerialGPSBaud
+  #endif
+  #ifndef SERIAL_GPS_BAUD
+    #warning "Configuration (Config.h): Setting SERIAL_GPS_BAUD, GPS serial port baud rate is not defined, using 4800."
+    #define SERIAL_GPS_BAUD 4800
+  #endif
+#endif
+
 #ifndef WEATHER
   #error "Configuration (Config.h): Setting WEATHER must be present!"
 #elif WEATHER != OFF && (WEATHER < WEATHER_FIRST || WEATHER > WEATHER_LAST)
   #error "Configuration (Config.h): Setting WEATHER sensor invalid, use OFF or BME280, BME280_0x76, BME280SPI only."
+#endif
+
+#ifndef WEATHER_SUPRESS_ERRORS
+  #define WEATHER_SUPRESS_ERRORS OFF
+#endif
+
+#if FOCUSER1 == OFF && FOCUSER2 != OFF
+  #error "Configuration (Config.h): FOCUSER2 can't be enabled if FOCUSER1 isn't enabled; if using only one focuser it must be FOCUSER1."
 #endif
 
 #if FEATURE1_PURPOSE != OFF || FEATURE2_PURPOSE != OFF || FEATURE3_PURPOSE != OFF || FEATURE4_PURPOSE != OFF || FEATURE5_PURPOSE != OFF || FEATURE6_PURPOSE != OFF || FEATURE7_PURPOSE != OFF || FEATURE8_PURPOSE != OFF
@@ -396,8 +551,8 @@
 #endif
 #ifndef FEATURE1_PURPOSE
   #error "Configuration (Config.h): Setting FEATURE1_PURPOSE must be present!"
-#elif FEATURE1_PURPOSE != OFF && (FEATURE1_PURPOSE < AUXILLARY_FIRST || FEATURE1_PURPOSE > AUXILLARY_LAST)
-  #error "Configuration (Config.h): Setting FEATURE1_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, or INTERVALOMETER."
+#elif FEATURE1_PURPOSE != OFF && (FEATURE1_PURPOSE < AUXILARY_FIRST || FEATURE1_PURPOSE > AUXILARY_LAST)
+  #error "Configuration (Config.h): Setting FEATURE1_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, etc."
 #endif
 #ifndef FEATURE1_TEMP
   #error "Configuration (Config.h): Setting FEATURE1_TEMP must be present!"
@@ -409,14 +564,29 @@
 #elif FEATURE1_PIN != OFF && (FEATURE1_PIN & DS_MASK) != DS2413 && FEATURE1_PIN < 0 && FEATURE1_PIN > 255
   #error "Configuration (Config.h): Setting FEATURE1_PIN invalid, use OFF, DS2413, DS2413 s/n, or a valid pin# (0 to 255 only.)"
 #endif
+#ifndef FEATURE1_DEFAULT_VALUE
+  #error "Configuration (Config.h): Setting FEATURE1_DEFAULT_VALUE must be present!"
+#elif FEATURE1_PURPOSE == SWITCH || FEATURE1_PURPOSE == DEW_HEATER
+  #if FEATURE1_DEFAULT_VALUE != OFF && FEATURE1_DEFAULT_VALUE != ON
+    #error "Configuration (Config.h): Setting FEATURE1_DEFAULT_VALUE (SWITCH or DEW_HEATER) invalid, use OFF or ON only."
+  #endif
+#elif FEATURE1_PURPOSE == ANALOG_OUT
+  #if FEATURE1_DEFAULT_VALUE != OFF && (FEATURE1_DEFAULT_VALUE < 0 || FEATURE1_DEFAULT_VALUE > 255)
+    #error "Configuration (Config.h): Setting FEATURE1_DEFAULT_VALUE (ANALOG OUT) invalid, use OFF or 0 to 255 only."
+  #endif
+#else // everything else
+  #if FEATURE1_DEFAULT_VALUE != OFF
+    #error "Configuration (Config.h): Setting FEATURE1_DEFAULT_VALUE (etc.) invalid, use OFF only."
+  #endif
+#endif
 
 #ifndef FEATURE2_NAME
   #error "Configuration (Config.h): Setting FEATURE2_NAME must be present!"
 #endif
 #ifndef FEATURE2_PURPOSE
   #error "Configuration (Config.h): Setting FEATURE2_PURPOSE must be present!"
-#elif FEATURE2_PURPOSE != OFF && (FEATURE2_PURPOSE < AUXILLARY_FIRST || FEATURE2_PURPOSE > AUXILLARY_LAST)
-  #error "Configuration (Config.h): Setting FEATURE2_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, or INTERVALOMETER."
+#elif FEATURE2_PURPOSE != OFF && (FEATURE2_PURPOSE < AUXILARY_FIRST || FEATURE2_PURPOSE > AUXILARY_LAST)
+  #error "Configuration (Config.h): Setting FEATURE2_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, etc."
 #endif
 #ifndef FEATURE2_TEMP
   #error "Configuration (Config.h): Setting FEATURE2_TEMP must be present!"
@@ -428,14 +598,29 @@
 #elif FEATURE2_PIN != OFF && (FEATURE2_PIN & DS_MASK) != DS2413 && FEATURE2_PIN < 0 && FEATURE2_PIN > 255
   #error "Configuration (Config.h): Setting FEATURE2_PIN invalid, use OFF, DS2413, DS2413 s/n, or a valid pin# (0 to 255 only.)"
 #endif
+#ifndef FEATURE2_DEFAULT_VALUE
+  #error "Configuration (Config.h): Setting FEATURE2_DEFAULT_VALUE must be present!"
+#elif FEATURE2_PURPOSE == SWITCH || FEATURE2_PURPOSE == DEW_HEATER
+  #if FEATURE2_DEFAULT_VALUE != OFF && FEATURE2_DEFAULT_VALUE != ON
+    #error "Configuration (Config.h): Setting FEATURE2_DEFAULT_VALUE (SWITCH or DEW_HEATER) invalid, use OFF or ON only."
+  #endif
+#elif FEATURE2_PURPOSE == ANALOG_OUT
+  #if FEATURE2_DEFAULT_VALUE != OFF && (FEATURE2_DEFAULT_VALUE < 0 || FEATURE2_DEFAULT_VALUE > 255)
+    #error "Configuration (Config.h): Setting FEATURE2_DEFAULT_VALUE (ANALOG OUT) invalid, use OFF or 0 to 255 only."
+  #endif
+#else // everything else
+  #if FEATURE2_DEFAULT_VALUE != OFF
+    #error "Configuration (Config.h): Setting FEATURE2_DEFAULT_VALUE (etc.) invalid, use OFF only."
+  #endif
+#endif
 
 #ifndef FEATURE3_NAME
   #error "Configuration (Config.h): Setting FEATURE3_NAME must be present!"
 #endif
 #ifndef FEATURE3_PURPOSE
   #error "Configuration (Config.h): Setting FEATURE3_PURPOSE must be present!"
-#elif FEATURE3_PURPOSE != OFF && (FEATURE3_PURPOSE < AUXILLARY_FIRST || FEATURE3_PURPOSE > AUXILLARY_LAST)
-  #error "Configuration (Config.h): Setting FEATURE3_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, or INTERVALOMETER."
+#elif FEATURE3_PURPOSE != OFF && (FEATURE3_PURPOSE < AUXILARY_FIRST || FEATURE3_PURPOSE > AUXILARY_LAST)
+  #error "Configuration (Config.h): Setting FEATURE3_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, etc."
 #endif
 #ifndef FEATURE3_TEMP
   #error "Configuration (Config.h): Setting FEATURE3_TEMP must be present!"
@@ -447,14 +632,29 @@
 #elif FEATURE3_PIN != OFF && (FEATURE3_PIN & DS_MASK) != DS2413 && FEATURE3_PIN < 0 && FEATURE3_PIN > 255
   #error "Configuration (Config.h): Setting FEATURE3_PIN invalid, use OFF, DS2413, DS2413 s/n, or a valid pin# (0 to 255 only.)"
 #endif
+#ifndef FEATURE3_DEFAULT_VALUE
+  #error "Configuration (Config.h): Setting FEATURE3_DEFAULT_VALUE must be present!"
+#elif FEATURE3_PURPOSE == SWITCH || FEATURE3_PURPOSE == DEW_HEATER
+  #if FEATURE3_DEFAULT_VALUE != OFF && FEATURE3_DEFAULT_VALUE != ON
+    #error "Configuration (Config.h): Setting FEATURE3_DEFAULT_VALUE (SWITCH or DEW_HEATER) invalid, use OFF or ON only."
+  #endif
+#elif FEATURE3_PURPOSE == ANALOG_OUT
+  #if FEATURE3_DEFAULT_VALUE != OFF && (FEATURE3_DEFAULT_VALUE < 0 || FEATURE3_DEFAULT_VALUE > 255)
+    #error "Configuration (Config.h): Setting FEATURE3_DEFAULT_VALUE (ANALOG OUT) invalid, use OFF or 0 to 255 only."
+  #endif
+#else // everything else
+  #if FEATURE3_DEFAULT_VALUE != OFF
+    #error "Configuration (Config.h): Setting FEATURE3_DEFAULT_VALUE (etc.) invalid, use OFF only."
+  #endif
+#endif
 
 #ifndef FEATURE4_NAME
   #error "Configuration (Config.h): Setting FEATURE4_NAME must be present!"
 #endif
 #ifndef FEATURE4_PURPOSE
   #error "Configuration (Config.h): Setting FEATURE4_PURPOSE must be present!"
-#elif FEATURE4_PURPOSE != OFF && (FEATURE4_PURPOSE < AUXILLARY_FIRST || FEATURE4_PURPOSE > AUXILLARY_LAST)
-  #error "Configuration (Config.h): Setting FEATURE4_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, or INTERVALOMETER."
+#elif FEATURE4_PURPOSE != OFF && (FEATURE4_PURPOSE < AUXILARY_FIRST || FEATURE4_PURPOSE > AUXILARY_LAST)
+  #error "Configuration (Config.h): Setting FEATURE4_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, etc."
 #endif
 #ifndef FEATURE4_TEMP
   #error "Configuration (Config.h): Setting FEATURE4_TEMP must be present!"
@@ -466,14 +666,29 @@
 #elif FEATURE4_PIN != OFF && (FEATURE4_PIN & DS_MASK) != DS2413 && FEATURE4_PIN < 0 && FEATURE4_PIN > 255
   #error "Configuration (Config.h): Setting FEATURE4_PIN invalid, use OFF, DS2413, DS2413 s/n, or a valid pin# (0 to 255 only.)"
 #endif
+#ifndef FEATURE4_DEFAULT_VALUE
+  #error "Configuration (Config.h): Setting FEATURE4_DEFAULT_VALUE must be present!"
+#elif FEATURE4_PURPOSE == SWITCH || FEATURE4_PURPOSE == DEW_HEATER
+  #if FEATURE4_DEFAULT_VALUE != OFF && FEATURE4_DEFAULT_VALUE != ON
+    #error "Configuration (Config.h): Setting FEATURE4_DEFAULT_VALUE (SWITCH or DEW_HEATER) invalid, use OFF or ON only."
+  #endif
+#elif FEATURE4_PURPOSE == ANALOG_OUT
+  #if FEATURE4_DEFAULT_VALUE != OFF && (FEATURE4_DEFAULT_VALUE < 0 || FEATURE4_DEFAULT_VALUE > 255)
+    #error "Configuration (Config.h): Setting FEATURE4_DEFAULT_VALUE (ANALOG OUT) invalid, use OFF or 0 to 255 only."
+  #endif
+#else // everything else
+  #if FEATURE4_DEFAULT_VALUE != OFF
+    #error "Configuration (Config.h): Setting FEATURE4_DEFAULT_VALUE (etc.) invalid, use OFF only."
+  #endif
+#endif
 
 #ifndef FEATURE5_NAME
   #error "Configuration (Config.h): Setting FEATURE5_NAME must be present!"
 #endif
 #ifndef FEATURE5_PURPOSE
   #error "Configuration (Config.h): Setting FEATURE5_PURPOSE must be present!"
-#elif FEATURE5_PURPOSE != OFF && (FEATURE5_PURPOSE < AUXILLARY_FIRST || FEATURE5_PURPOSE > AUXILLARY_LAST)
-  #error "Configuration (Config.h): Setting FEATURE5_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, or INTERVALOMETER."
+#elif FEATURE5_PURPOSE != OFF && (FEATURE5_PURPOSE < AUXILARY_FIRST || FEATURE5_PURPOSE > AUXILARY_LAST)
+  #error "Configuration (Config.h): Setting FEATURE5_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, etc."
 #endif
 #ifndef FEATURE5_TEMP
   #error "Configuration (Config.h): Setting FEATURE5_TEMP must be present!"
@@ -485,14 +700,29 @@
 #elif FEATURE5_PIN != OFF && (FEATURE5_PIN & DS_MASK) != DS2413 && FEATURE5_PIN < 0 && FEATURE5_PIN > 255
   #error "Configuration (Config.h): Setting FEATURE5_PIN invalid, use OFF, DS2413, DS2413 s/n, or a valid pin# (0 to 255 only.)"
 #endif
+#ifndef FEATURE5_DEFAULT_VALUE
+  #error "Configuration (Config.h): Setting FEATURE5_DEFAULT_VALUE must be present!"
+#elif FEATURE5_PURPOSE == SWITCH || FEATURE5_PURPOSE == DEW_HEATER
+  #if FEATURE5_DEFAULT_VALUE != OFF && FEATURE5_DEFAULT_VALUE != ON
+    #error "Configuration (Config.h): Setting FEATURE5_DEFAULT_VALUE (SWITCH or DEW_HEATER) invalid, use OFF or ON only."
+  #endif
+#elif FEATURE5_PURPOSE == ANALOG_OUT
+  #if FEATURE5_DEFAULT_VALUE != OFF && (FEATURE5_DEFAULT_VALUE < 0 || FEATURE5_DEFAULT_VALUE > 255)
+    #error "Configuration (Config.h): Setting FEATURE5_DEFAULT_VALUE (ANALOG OUT) invalid, use OFF or 0 to 255 only."
+  #endif
+#else // everything else
+  #if FEATURE5_DEFAULT_VALUE != OFF
+    #error "Configuration (Config.h): Setting FEATURE5_DEFAULT_VALUE (etc.) invalid, use OFF only."
+  #endif
+#endif
 
 #ifndef FEATURE6_NAME
   #error "Configuration (Config.h): Setting FEATURE6_NAME must be present!"
 #endif
 #ifndef FEATURE6_PURPOSE
   #error "Configuration (Config.h): Setting FEATURE6_PURPOSE must be present!"
-#elif FEATURE6_PURPOSE != OFF && (FEATURE6_PURPOSE < AUXILLARY_FIRST || FEATURE6_PURPOSE > AUXILLARY_LAST)
-  #error "Configuration (Config.h): Setting FEATURE6_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, or INTERVALOMETER."
+#elif FEATURE6_PURPOSE != OFF && (FEATURE6_PURPOSE < AUXILARY_FIRST || FEATURE6_PURPOSE > AUXILARY_LAST)
+  #error "Configuration (Config.h): Setting FEATURE6_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, etc."
 #endif
 #ifndef FEATURE6_TEMP
   #error "Configuration (Config.h): Setting FEATURE6_TEMP must be present!"
@@ -504,14 +734,29 @@
 #elif FEATURE6_PIN != OFF && (FEATURE6_PIN & DS_MASK) != DS2413 && FEATURE6_PIN < 0 && FEATURE6_PIN > 255
   #error "Configuration (Config.h): Setting FEATURE6_PIN invalid, use OFF, DS2413, DS2413 s/n, or a valid pin# (0 to 255 only.)"
 #endif
+#ifndef FEATURE6_DEFAULT_VALUE
+  #error "Configuration (Config.h): Setting FEATURE6_DEFAULT_VALUE must be present!"
+#elif FEATURE6_PURPOSE == SWITCH || FEATURE6_PURPOSE == DEW_HEATER
+  #if FEATURE6_DEFAULT_VALUE != OFF && FEATURE6_DEFAULT_VALUE != ON
+    #error "Configuration (Config.h): Setting FEATURE6_DEFAULT_VALUE (SWITCH or DEW_HEATER) invalid, use OFF or ON only."
+  #endif
+#elif FEATURE6_PURPOSE == ANALOG_OUT
+  #if FEATURE6_DEFAULT_VALUE != OFF && (FEATURE6_DEFAULT_VALUE < 0 || FEATURE6_DEFAULT_VALUE > 255)
+    #error "Configuration (Config.h): Setting FEATURE6_DEFAULT_VALUE (ANALOG OUT) invalid, use OFF or 0 to 255 only."
+  #endif
+#else // everything else
+  #if FEATURE6_DEFAULT_VALUE != OFF
+    #error "Configuration (Config.h): Setting FEATURE6_DEFAULT_VALUE (etc.) invalid, use OFF only."
+  #endif
+#endif
 
 #ifndef FEATURE7_NAME
   #error "Configuration (Config.h): Setting FEATURE7_NAME must be present!"
 #endif
 #ifndef FEATURE7_PURPOSE
   #error "Configuration (Config.h): Setting FEATURE7_PURPOSE must be present!"
-#elif FEATURE7_PURPOSE != OFF && (FEATURE7_PURPOSE < AUXILLARY_FIRST || FEATURE7_PURPOSE > AUXILLARY_LAST)
-  #error "Configuration (Config.h): Setting FEATURE7_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, or INTERVALOMETER."
+#elif FEATURE7_PURPOSE != OFF && (FEATURE7_PURPOSE < AUXILARY_FIRST || FEATURE7_PURPOSE > AUXILARY_LAST)
+  #error "Configuration (Config.h): Setting FEATURE7_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, etc."
 #endif
 #ifndef FEATURE7_TEMP
   #error "Configuration (Config.h): Setting FEATURE7_TEMP must be present!"
@@ -523,14 +768,29 @@
 #elif FEATURE7_PIN != OFF && (FEATURE7_PIN & DS_MASK) != DS2413 && FEATURE7_PIN < 0 && FEATURE7_PIN > 255
   #error "Configuration (Config.h): Setting FEATURE7_PIN invalid, use OFF, DS2413, DS2413 s/n, or a valid pin# (0 to 255 only.)"
 #endif
+#ifndef FEATURE7_DEFAULT_VALUE
+  #error "Configuration (Config.h): Setting FEATURE7_DEFAULT_VALUE must be present!"
+#elif FEATURE7_PURPOSE == SWITCH || FEATURE7_PURPOSE == DEW_HEATER
+  #if FEATURE7_DEFAULT_VALUE != OFF && FEATURE7_DEFAULT_VALUE != ON
+    #error "Configuration (Config.h): Setting FEATURE7_DEFAULT_VALUE (SWITCH or DEW_HEATER) invalid, use OFF or ON only."
+  #endif
+#elif FEATURE7_PURPOSE == ANALOG_OUT
+  #if FEATURE7_DEFAULT_VALUE != OFF && (FEATURE7_DEFAULT_VALUE < 0 || FEATURE7_DEFAULT_VALUE > 255)
+    #error "Configuration (Config.h): Setting FEATURE7_DEFAULT_VALUE (ANALOG OUT) invalid, use OFF or 0 to 255 only."
+  #endif
+#else // everything else
+  #if FEATURE7_DEFAULT_VALUE != OFF
+    #error "Configuration (Config.h): Setting FEATURE7_DEFAULT_VALUE (etc.) invalid, use OFF only."
+  #endif
+#endif
 
 #ifndef FEATURE8_NAME
   #error "Configuration (Config.h): Setting FEATURE8_NAME must be present!"
 #endif
 #ifndef FEATURE8_PURPOSE
   #error "Configuration (Config.h): Setting FEATURE8_PURPOSE must be present!"
-#elif FEATURE8_PURPOSE != OFF && (FEATURE8_PURPOSE < AUXILLARY_FIRST || FEATURE8_PURPOSE > AUXILLARY_LAST)
-  #error "Configuration (Config.h): Setting FEATURE8_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, or INTERVALOMETER."
+#elif FEATURE8_PURPOSE != OFF && (FEATURE8_PURPOSE < AUXILARY_FIRST || FEATURE8_PURPOSE > AUXILARY_LAST)
+  #error "Configuration (Config.h): Setting FEATURE8_PURPOSE invalid, use OFF, SWITCH, ANALOG_OUTPUT, DEW_HEATER, etc."
 #endif
 #ifndef FEATURE8_TEMP
   #error "Configuration (Config.h): Setting FEATURE8_TEMP must be present!"
@@ -541,6 +801,21 @@
   #error "Configuration (Config.h): Setting FEATURE8_PIN must be present!"
 #elif FEATURE8_PIN != OFF && (FEATURE8_PIN & DS_MASK) != DS2413 && FEATURE8_PIN < 0 && FEATURE8_PIN > 255
   #error "Configuration (Config.h): Setting FEATURE8_PIN invalid, use OFF, DS2413, DS2413 s/n, or a valid pin# (0 to 255 only.)"
+#endif
+#ifndef FEATURE8_DEFAULT_VALUE
+  #error "Configuration (Config.h): Setting FEATURE8_DEFAULT_VALUE must be present!"
+#elif FEATURE8_PURPOSE == SWITCH || FEATURE8_PURPOSE == DEW_HEATER
+  #if FEATURE8_DEFAULT_VALUE != OFF && FEATURE8_DEFAULT_VALUE != ON
+    #error "Configuration (Config.h): Setting FEATURE8_DEFAULT_VALUE (SWITCH or DEW_HEATER) invalid, use OFF or ON only."
+  #endif
+#elif FEATURE8_PURPOSE == ANALOG_OUT
+  #if FEATURE8_DEFAULT_VALUE != OFF && (FEATURE8_DEFAULT_VALUE < 0 || FEATURE8_DEFAULT_VALUE > 255)
+    #error "Configuration (Config.h): Setting FEATURE8_DEFAULT_VALUE (ANALOG OUT) invalid, use OFF or 0 to 255 only."
+  #endif
+#else // everything else
+  #if FEATURE8_DEFAULT_VALUE != OFF
+    #error "Configuration (Config.h): Setting FEATURE8_DEFAULT_VALUE (etc.) invalid, use OFF only."
+  #endif
 #endif
 
 #if (FEATURE1_TEMP & DS_MASK) == DS1820 || (FEATURE2_TEMP & DS_MASK) == DS1820 || (FEATURE3_TEMP & DS_MASK) == DS1820 || (FEATURE4_TEMP & DS_MASK) == DS1820 || (FEATURE5_TEMP & DS_MASK) == DS1820 || (FEATURE6_TEMP & DS_MASK) == DS1820 || (FEATURE7_TEMP & DS_MASK) == DS1820 || (FEATURE8_TEMP & DS_MASK) == DS1820 
@@ -576,8 +851,8 @@
 
 #ifndef HOME_SENSE
   #error "Configuration (Config.h): Setting HOME_SENSE must be present!"
-#elif HOME_SENSE != OFF && HOME_SENSE != ON && HOME_SENSE != ON_PULLUP && HOME_SENSE != ON_PULLDOWN
-  #error "Configuration (Config.h): Setting HOME_SENSE invalid, use OFF, ON, ON_PULLUP, or ON_PULLDOWN only."
+#elif HOME_SENSE != OFF && HOME_SENSE != ON && HOME_SENSE != ON_PULLUP && HOME_SENSE != ON_PULLDOWN && (HOME_SENSE < 0 || HOME_SENSE > 1023)
+  #error "Configuration (Config.h): Setting HOME_SENSE invalid, use OFF, ON, ON_PULLUP, ON_PULLDOWN, or a number between 0 and 1023 (0 to 3.3V or 0 to 5V) only."
 #endif
 
 #ifndef HOME_SENSE_STATE_AXIS1
@@ -606,7 +881,7 @@
 
 #ifndef PEC_SENSE
   #error "Configuration (Config.h): Setting PEC_SENSE must be present!"
-#elif (PEC_SENSE != OFF && PEC_SENSE != ON && PEC_SENSE != ON_PULLUP && PEC_SENSE != ON_PULLDOWN) && PEC_SENSE < 0 && PEC_SENSE > 1023
+#elif (PEC_SENSE != OFF && PEC_SENSE != ON && PEC_SENSE != ON_PULLUP && PEC_SENSE != ON_PULLDOWN) && (PEC_SENSE < 0 || PEC_SENSE > 1023)
   #error "Configuration (Config.h): Setting PEC_SENSE invalid, use OFF, ON, ON_PULLUP, ON_PULLDOWN or a number between 0 and 1023 (0 to 3.3V or 0 to 5V) only."
 #endif
 
@@ -672,10 +947,16 @@
   #warning "Configuration (Config.h): Setting TRACK_BACKLASH_RATE, above 25x can cause problems if AXISn_STEPS_PER_DEGREE > 30600 *and* on-the-fly micro-step mode switching is used"
 #endif
 
-#ifndef SYNC_CURRENT_PIER_SIDE_ONLY
-  #error "Configuration (Config.h): Setting SYNC_CURRENT_PIER_SIDE_ONLY must be present!"
-#elif SYNC_CURRENT_PIER_SIDE_ONLY != OFF && SYNC_CURRENT_PIER_SIDE_ONLY != ON
-  #error "Configuration (Config.h): Setting SYNC_CURRENT_PIER_SIDE_ONLY invalid, use OFF or ON only."
+#ifndef PIER_SIDE_SYNC_CHANGE_SIDES
+  #error "Configuration (Config.h): Setting PIER_SIDE_SYNC_CHANGE_SIDES must be present!"
+#elif PIER_SIDE_SYNC_CHANGE_SIDES != OFF && PIER_SIDE_SYNC_CHANGE_SIDES != ON
+  #error "Configuration (Config.h): Setting PIER_SIDE_SYNC_CHANGE_SIDES invalid, use OFF or ON only."
+#endif
+
+#ifndef PIER_SIDE_PREFERRED_DEFAULT
+  #error "Configuration (Config.h): Setting PIER_SIDE_PREFERRED_DEFAULT must be present!"
+#elif PIER_SIDE_PREFERRED_DEFAULT != BEST && PIER_SIDE_PREFERRED_DEFAULT != EAST && PIER_SIDE_PREFERRED_DEFAULT != WEST
+  #error "Configuration (Config.h): Setting PIER_SIDE_PREFERRED_DEFAULT invalid, use BEST, EAST, or WEST only."
 #endif
 
 #ifndef SLEW_RATE_MEMORY
@@ -731,13 +1012,13 @@
 #else
   #ifndef AXIS1_LIMIT_MIN
     #error "Configuration (Config.h): Setting AXIS1_LIMIT_MIN must be present!"
-  #elif AXIS1_LIMIT_MIN < -180 || AXIS1_LIMIT_MIN > -105
-    #error "Configuration (Config.h): Setting AXIS1_LIMIT_MIN invalid, use a number between -105 and -180 (degrees.)"
+  #elif AXIS1_LIMIT_MIN < -270 || AXIS1_LIMIT_MIN > -90
+    #error "Configuration (Config.h): Setting AXIS1_LIMIT_MIN invalid, use a number between -90 and -270 (degrees.)"
   #endif
   #ifndef AXIS1_LIMIT_MAX
     #error "Configuration (Config.h): Setting AXIS1_LIMIT_MAX must be present!"
-  #elif AXIS1_LIMIT_MAX < 105 || AXIS1_LIMIT_MAX > 180
-    #error "Configuration (Config.h): Setting AXIS1_LIMIT_MAX invalid, use a number between 105 and 180 (degrees.)"
+  #elif AXIS1_LIMIT_MAX < 90 || AXIS1_LIMIT_MAX > 270
+    #error "Configuration (Config.h): Setting AXIS1_LIMIT_MAX invalid, use a number between 90 and 270 (degrees.)"
   #endif
 #endif
 
@@ -755,8 +1036,10 @@
 
 #ifndef AXIS2_TANGENT_ARM
   #error "Configuration (Config.h): Setting AXIS2_TANGENT_ARM must be present!"
-#elif (AXIS2_TANGENT_ARM != ON && AXIS2_TANGENT_ARM != OFF)
+#elif AXIS2_TANGENT_ARM != ON && AXIS2_TANGENT_ARM != OFF
   #error "Configuration (Config.h): Setting AXIS2_TANGENT_ARM invalid, use OFF or ON only."
+#elif AXIS2_TANGENT_ARM == ON && MOUNT_TYPE == ALTAZM
+  #error "Configuration (Config.h): Setting AXIS2_TANGENT_ARM is not compatible with ALTAZM mode."
 #endif
 #ifndef AXIS2_TANGENT_ARM_CORRECTION
   #if AXIS2_TANGENT_ARM == ON
@@ -857,9 +1140,6 @@
       #if (AXIS1_DRIVER_MICROSTEPS <= AXIS1_DRIVER_MICROSTEPS_GOTO) && (!(MODE_SWITCH_BEFORE_SLEW != OFF && AXIS1_DRIVER_MICROSTEPS == AXIS1_DRIVER_MICROSTEPS_GOTO))
           #error "Configuration (Config.h): AXIS1_DRIVER_MICROSTEPS_GOTO should be less than AXIS1_DRIVER_MICROSTEPS or OFF"
       #endif
-      #define AXIS1_DRIVER_STEP_GOTO (AXIS1_DRIVER_MICROSTEPS/AXIS1_DRIVER_MICROSTEPS_GOTO)
-    #else
-      #define AXIS1_DRIVER_STEP_GOTO (AXIS1_DRIVER_MICROSTEPS_GOTO/AXIS1_DRIVER_MICROSTEPS)
     #endif
   #endif
   #if AXIS2_DRIVER_MICROSTEPS_GOTO != OFF
@@ -867,9 +1147,6 @@
       #if (AXIS2_DRIVER_MICROSTEPS <= AXIS2_DRIVER_MICROSTEPS_GOTO) && (!(MODE_SWITCH_BEFORE_SLEW != OFF && AXIS2_DRIVER_MICROSTEPS == AXIS2_DRIVER_MICROSTEPS_GOTO))
           #error "Configuration (Config.h): AXIS2_DRIVER_MICROSTEPS_GOTO should be less than AXIS2_DRIVER_MICROSTEPS or OFF"
       #endif
-      #define AXIS2_DRIVER_STEP_GOTO (AXIS2_DRIVER_MICROSTEPS/AXIS2_DRIVER_MICROSTEPS_GOTO)
-    #else
-      #define AXIS2_DRIVER_STEP_GOTO (AXIS2_DRIVER_MICROSTEPS_GOTO/AXIS2_DRIVER_MICROSTEPS)
     #endif
   #endif
 
@@ -913,6 +1190,24 @@
   #include "src/sd_drivers/Validate.GENERIC.h"
   #include "src/sd_drivers/Validate.SERVO.h"
 
+  #if AXIS1_DRIVER_STATUS == ON
+    #error "Configuration (Config.h): AXIS1_DRIVER_STATUS; Stepper driver doesn't support the ON setting."
+  #endif
+  #if AXIS1_DRIVER_STATUS != OFF && AXIS1_DRIVER_STATUS != LOW && AXIS1_DRIVER_STATUS != HIGH && AXIS1_DRIVER_STATUS != TMC_SPI
+    #error "Configuration (Config.h): AXIS1_DRIVER_STATUS; Stepper driver unsupported setting, use OFF, ON, LOW, HIGH, TMC_SPI."
+  #endif
+
+  #if AXIS2_DRIVER_STATUS == ON
+    #error "Configuration (Config.h): AXIS2_DRIVER_STATUS; Stepper driver doesn't support the ON setting."
+  #endif
+  #if AXIS2_DRIVER_STATUS != OFF && AXIS2_DRIVER_STATUS != LOW && AXIS2_DRIVER_STATUS != HIGH && AXIS2_DRIVER_STATUS != TMC_SPI
+    #error "Configuration (Config.h): AXIS2_DRIVER_STATUS; Stepper driver unsupported setting, use OFF, ON, LOW, HIGH, TMC_SPI."
+  #endif
+
+  #if AXIS1_DRIVER_DECAY_MODE_GOTO == STEALTHCHOP || AXIS2_DRIVER_DECAY_MODE_GOTO == STEALTHCHOP
+    #warning "Configuration (Config.h): TMC stepper driver _VQUIET mode is generally not recommended except for situations where motor RPM is low."
+  #endif
+
   // for stepper drivers where AXISn_MICROSTEPS_GOTO must be defined
   #if MODE_SWITCH_BEFORE_SLEW == ON && AXIS1_DRIVER_MICROSTEPS != OFF && AXIS1_DRIVER_MICROSTEPS_GOTO == OFF
     #undef AXIS1_DRIVER_MICROSTEPS_GOTO
@@ -939,14 +1234,6 @@
   #define a2CLEAR a2STEP_L
 #endif
 
-// if AXISn_DRIVER_STEP_GOTO isn't defined, do so
-#ifndef AXIS1_DRIVER_STEP_GOTO
-  #define AXIS1_DRIVER_STEP_GOTO 1
-#endif
-#ifndef AXIS2_DRIVER_STEP_GOTO
-  #define AXIS2_DRIVER_STEP_GOTO 1
-#endif
-
 // make sure current settings aren't present unless an TMC_SPI driver is present
 #if AXIS1_DRIVER_MODEL != TMC_SPI
   #if AXIS1_DRIVER_IHOLD != OFF
@@ -970,7 +1257,7 @@
     #error "Configuration (Config.h): AXIS2_DRIVER_IGOTO must be OFF unless used with a TMC SPI mode stepper driver."
   #endif
 #endif
-#if AXIS3_DRIVER_MODEL != TMC_SPI
+#if ROTATOR == ON && AXIS3_DRIVER_MODEL != TMC_SPI
   #if AXIS3_DRIVER_IHOLD != OFF
     #error "Configuration (Config.h): AXIS3_DRIVER_IHOLD must be OFF unless used with a TMC SPI mode stepper driver."
   #endif
@@ -978,7 +1265,7 @@
     #error "Configuration (Config.h): AXIS3_DRIVER_IRUN must be OFF unless used with a TMC SPI mode stepper driver."
   #endif
 #endif
-#if AXIS4_DRIVER_MODEL != TMC_SPI
+#if FOCUSER1 == ON && AXIS4_DRIVER_MODEL != TMC_SPI
   #if AXIS4_DRIVER_IHOLD != OFF
     #error "Configuration (Config.h): AXIS4_DRIVER_IHOLD must be OFF unless used with a TMC SPI mode stepper driver."
   #endif
@@ -986,7 +1273,7 @@
     #error "Configuration (Config.h): AXIS4_DRIVER_IRUN must be OFF unless used with a TMC SPI mode stepper driver."
   #endif
 #endif
-#if AXIS5_DRIVER_MODEL != TMC_SPI
+#if FOCUSER2 == ON && AXIS5_DRIVER_MODEL != TMC_SPI
   #if AXIS5_DRIVER_IHOLD != OFF
     #error "Configuration (Config.h): AXIS5_DRIVER_IHOLD must be OFF unless used with a TMC SPI mode stepper driver."
   #endif

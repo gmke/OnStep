@@ -29,9 +29,11 @@
   #define HAL_SERIAL_B_ENABLED       // Enable support for RX1/TX1
 
   // don't enable serial C on a Classic board since pins are used
-  #if PINMAP != Classic
+  #if PINMAP != Classic && SERIAL_C_BAUD_DEFAULT != OFF
     #define HAL_SERIAL_C_ENABLED
-    #define HAL_SERIAL_C_SERIAL2     // Use RX2/TX2 for channel C (defaults to RX3/TX3 otherwise.)
+    #if PINMAP != Rumba
+      #define HAL_SERIAL_C_SERIAL2   // Use RX2/TX2 for channel C (defaults to RX3/TX3 otherwise.)
+    #endif
   #endif
 
   // this tells OnStep that a .transmit() method needs to be called to send data
@@ -48,12 +50,18 @@
   // don't enable serial C on a Classic board since pins are used
   #if PINMAP != Classic
     #define HAL_SERIAL_C_ENABLED
-    #define SerialC Serial2
+    #if PINMAP == Rumba
+      #define SerialC Serial3
+    #else
+      #define SerialC Serial2
+    #endif
   #endif
 #endif
 
 // New symbol for the default I2C port -------------------------------------------------------------
+#include <Wire.h>
 #define HAL_Wire Wire
+#define HAL_WIRE_CLOCK 100000
 
 // Non-volatile storage ----------------------------------------------------------------------------
 #if defined(NV_AT24C32)
@@ -66,7 +74,7 @@
 
 //--------------------------------------------------------------------------------------------------
 // General purpose initialize for HAL
-void HAL_Init(void) {
+void HAL_Initialize(void) {
 }
 
 //--------------------------------------------------------------------------------------------------

@@ -62,30 +62,23 @@ L_ENC_SYNC_TO_ENC ": <br />"
 const char html_syncEncodersNow[] PROGMEM =
 L_ENC_SYNC_TO_ONS ": <br />"
 "<button name='ms' value='enc' type='submit'>" L_ENC_SYNC_NOW "</button>"
-"</form><br />";
+"<br />";
 
-const char html_encEn1[] PROGMEM =
-L_ENC_AUTO_SYNC " (<span id='aste'>?</span>):<br />";
+#ifdef ENC_HAS_ABSOLUTE
+const char html_zeroEncodersNow[] PROGMEM =
+L_ENC_ZERO_TO_ONS ": <br />"
+"<button name='ms' value='zro' type='submit'>" L_ENC_SYNC_NOW "</button>"
+"<br />";
+#endif
+
+const char html_encEn1[] PROGMEM = "<br />"
+L_ENC_AUTO_SYNC ": <br />";
 const char html_encEn2[] PROGMEM =
-"<button type='button' onpointerdown=\"s('as','on')\" >" L_ON "</button>"
-"<button type='button' onpointerdown=\"s('as','off')\" >" L_OFF "</button>"
+"<button id='eas_on'  class='btns_right' onpointerdown=\"s('as','on')\"  type='button' disabled>" L_ON "</button>"
+"<button id='eas_off' class='btns_left'  onpointerdown=\"s('as','off')\" type='button' disabled>" L_OFF "</button>"
 "<br /><br />";
 
-const char html_encMxAxis0[] PROGMEM =
-L_ENC_MAX_ANGLE ": <br />"
-"<form method='get' action='/enc.htm'>";
-const char html_encMxAxis1[] PROGMEM =
-" <input value='%ld' type='number' name='d1' min='0' max='9999'>"
-"<button type='submit'>" L_UPLOAD "</button>"
-" " L_ENC_MAX_ANGLE_AXIS1
-"</form>";
-const char html_encMxAxis2[] PROGMEM = 
-"<form method='get' action='/enc.htm'>"
-" <input value='%ld' type='number' name='d2' min='0' max='9999'>"
-"<button type='submit'>" L_UPLOAD "</button>"
-" " L_ENC_MAX_ANGLE_AXIS2
-"</form><br />";
-
+// rate control
 const char html_encRateEn1[] PROGMEM =
 L_ENC_AUTO_RATE " (<span id='orc'>?</span>):<br />";
 const char html_encRateEn2[] PROGMEM =
@@ -160,8 +153,23 @@ const char html_encSweepEn2[] PROGMEM =
 "<button type='button' onpointerdown=\"s('sw','off')\" >" L_OFF "</button>"
 "<br /><br />";
 
-const char html_encEnd[] PROGMEM = 
-"</form>";
+// encoder configuration
+const char html_encFormBegin[] PROGMEM = "<div class='content'><br />\r\n<form method='get' action='/enc.htm'>";
+const char html_encFormEnd[] PROGMEM = "\r\n</form><br />\r\n</div><br />\r\n";
+
+const char html_encAxisTpd[] PROGMEM =
+" <input style='width: 7em;' value='%s' type='number' name='a%dcpd' min='%d' max='%ld' step='any'>&nbsp; " L_ENC_SET_TPD "<br />\r\n";
+
+const char html_encAxisReverse[] PROGMEM =
+" <input style='width: 7em;' value='%d' type='number' name='a%drev' min='0' max='1' step='1'>&nbsp; " L_ADV_SET_REV "<br />\r\n";
+
+const char html_encMxAxis1[] PROGMEM =
+" <input style='width: 7em;' value='%ld' type='number' name='d1' min='0' max='9999'>"
+"&nbsp; " L_ENC_MAX_ANGLE ", " L_ENC_MAX_ANGLE_AXIS1 "<br/>";
+
+const char html_encMxAxis2[] PROGMEM =
+" <input style='width: 7em;' value='%ld' type='number' name='d2' min='0' max='9999'>"
+"&nbsp; " L_ENC_MAX_ANGLE ", " L_ENC_MAX_ANGLE_AXIS2 "<br/>";
 
 #ifdef OETHS
 void handleEncoders(EthernetClient *client) {
@@ -174,6 +182,7 @@ void handleEncoders() {
   mountStatus.update();
 
   char temp[400]="";
+  char temp1[80]="";
   
   processEncodersGet();
 
@@ -206,6 +215,12 @@ void handleEncoders() {
   data += FPSTR(html_main_css6);
   data += FPSTR(html_main_css7);
   data += FPSTR(html_main_css8);
+  data += FPSTR(html_main_css_btns1);
+  data += FPSTR(html_main_css_btns2);
+  data += FPSTR(html_main_css_btns3);
+  sendHtml(data);
+  data += FPSTR(html_main_css_collapse1);
+  data += FPSTR(html_main_css_collapse2);
   data += FPSTR(html_main_cssE);
   data += FPSTR(html_headE);
   data += FPSTR(html_bodyB);
@@ -243,21 +258,16 @@ void handleEncoders() {
 
   data += FPSTR(html_syncOnStepNow);
   data += FPSTR(html_syncEncodersNow);
+#ifdef ENC_HAS_ABSOLUTE
+  data += FPSTR(html_zeroEncodersNow);
+#endif
+  data += "</form>";
 
   // Autosync
   data += FPSTR(html_encEn1);
   data += FPSTR(html_encEn2);
   sendHtml(data);
-  
-  // Encoder sync thresholds
-  sprintf_P(temp,html_encMxAxis0);
-  data += temp;
-  sprintf_P(temp,html_encMxAxis1,Axis1EncDiffLimit);
-  data += temp;
-  sprintf_P(temp,html_encMxAxis2,Axis2EncDiffLimit);
-  data += temp;
-  sendHtml(data);
-  
+
 #if AXIS1_ENC_RATE_CONTROL == ON
   // OnStep rate control
   data+="<br />";
@@ -331,9 +341,41 @@ void handleEncoders() {
   encoders.clearAverages();
 #endif
 
+  // Encoder configuration section
+  data += L_ENC_CONF ":<br />";
+
+  // Axis1 RA/Azm
+  data += "<button type='button' class='collapsible'>Axis1 RA/Azm</button>";
+  data += FPSTR(html_encFormBegin);
+  dtostrf(Axis1EncTicksPerDeg,1,3,temp1); stripNum(temp1);
+  sprintf_P(temp,html_encAxisTpd,temp1,1,1,100000L); data += temp;        // Encoder counts per degree
+  sprintf_P(temp,html_encAxisReverse,Axis1EncRev==ON?1:0,1); data += temp;// Encode reverse count
+  sprintf_P(temp,html_encMxAxis1,Axis1EncDiffTo); data += temp;           // Encoder sync thresholds
+  sendHtml(data);
+  data += "<button type='submit'>" L_UPLOAD "</button>\r\n";
+  data += "<button name='revert' value='1' type='submit'>" L_REVERT "</button>";
+  data += FPSTR(html_encFormEnd);
+  sendHtml(data);
+
+  // Axis2 Dec/Alt
+  data += "<button type='button' class='collapsible'>Axis2 Dec/Alt</button>";
+  data += FPSTR(html_encFormBegin);
+  dtostrf(Axis2EncTicksPerDeg,1,3,temp1); stripNum(temp1);
+  sprintf_P(temp,html_encAxisTpd,temp1,2,1,100000L); data += temp;        // Encoder counts per degree
+  sprintf_P(temp,html_encAxisReverse,Axis2EncRev==ON?1:0,2); data += temp;// Encode reverse count
+  sprintf_P(temp,html_encMxAxis2,Axis2EncDiffTo); data += temp;           // Encoder sync thresholds
+  sendHtml(data);
+  data += "<button type='submit'>" L_UPLOAD "</button>\r\n";
+  data += "<button name='revert' value='2' type='submit'>" L_REVERT "</button>";
+  data += FPSTR(html_encFormEnd);
+  sendHtml(data);
+  
   // end of page
   data+="<br />";
-
+  
+  // collapsible script
+  data += FPSTR(html_collapseScript);
+  
   strcpy(temp,"</div></div></body></html>");
   data += temp;
   sendHtml(data);
@@ -375,7 +417,9 @@ if (guideCorrectionMillis<0) {
   data += "orc|"; if (encRateControl) data+=L_ON "\n"; else data+=L_OFF "\n";
   data += "osc|"; if (encSweep) data+=L_ON "\n"; else data+=L_OFF "\n";
 #endif
-  data += "aste|";  if (encAutoSync) data+=L_ON "\n"; else data+=L_OFF "\n";
+
+  data += "eas_on|";  if (encAutoSync) data+="disabled"; else data+="enabled"; data+="\n";
+  data += "eas_off|"; if (encAutoSync) data+="enabled"; else data+="disabled"; data+="\n";
 
 #ifdef OETHS
   client->print(data);
@@ -400,155 +444,215 @@ void encAjaxGet() {
 void processEncodersGet() {
   boolean EEwrite=false;
   String v;
-  char temp[20]="";
   
-  v=server.arg("ms");
-  if (v!="") {
+  v = server.arg("ms");
+  if (v != EmptyStr) {
     if (v=="ons") encoders.syncToOnStep();
     if (v=="enc") encoders.syncFromOnStep();
+    #ifdef ENC_HAS_ABSOLUTE
+      if (v=="zro") encoders.zeroFromOnStep();
+    #endif
   }
 
   // Autosync
-  v=server.arg("as");
-  if (v!="") {
-    if (v=="on") encAutoSync=true;
-    if (v=="off") encAutoSync=false;
-  }
-
-  // Max. limits
-  v=server.arg("d1");
-  if (v!="") {
-    int i;
-    if ( (atoi2((char*)v.c_str(),&i)) && ((i>=0) && (i<=9999))) { 
-      Axis1EncDiffLimit=i;
-#ifndef EEPROM_DISABLED
-      EEPROM_writeLong(600,Axis1EncDiffLimit);
-#endif
+  v = server.arg("as");
+  if (v != EmptyStr) {
+    if (v=="on") { 
+      encAutoSync=true;
+      if (ENC_AUTO_SYNC_MEMORY == ON) nv.writeInt(EE_ENC_AUTO_SYNC,encAutoSync);
+      EEwrite=true;
+    }
+    if (v=="off") { 
+      encAutoSync=false;
+      if (ENC_AUTO_SYNC_MEMORY == ON) nv.writeInt(EE_ENC_AUTO_SYNC,encAutoSync);
       EEwrite=true;
     }
   }
-  v=server.arg("d2");
-  if (v!="") {
+
+  // Max. limits
+  v = server.arg("d1");
+  if (v != EmptyStr) {
     int i;
     if ( (atoi2((char*)v.c_str(),&i)) && ((i>=0) && (i<=9999))) { 
-      Axis2EncDiffLimit=i;
-#ifndef EEPROM_DISABLED
-      EEPROM_writeLong(604,Axis2EncDiffLimit);
-#endif
+      Axis1EncDiffTo=i;
+      nv.writeLong(EE_ENC_A1_DIFF_TO,Axis1EncDiffTo);
+      EEwrite=true;
+    }
+  }
+  v = server.arg("d2");
+  if (v != EmptyStr) {
+    int i;
+    if ( atoi2((char*)v.c_str(),&i) && (i >= 0 && i <= 9999)) { 
+      Axis2EncDiffTo=i;
+      nv.writeLong(EE_ENC_A2_DIFF_TO,Axis2EncDiffTo);
+      EEwrite=true;
+    }
+  }
+
+  // Counts per degree
+  v = server.arg("a1cpd");
+  if (v != EmptyStr) {
+    double d = v.toFloat();
+    if (d >= 1.0 && d <= 10000.0) { 
+      Axis1EncTicksPerDeg=d;
+      nv.writeDouble(EE_ENC_A1_TICKS,Axis1EncTicksPerDeg);
+      EEwrite=true;
+    }
+  }
+  v = server.arg("a2cpd");
+  if (v != EmptyStr) {
+    double d = v.toFloat();
+    if (d >= 1.0 && d <= 10000.0) { 
+      Axis2EncTicksPerDeg=d;
+      nv.writeDouble(EE_ENC_A2_TICKS,Axis2EncTicksPerDeg);
+      EEwrite=true;
+    }
+  }
+
+  v = server.arg("a1rev");
+  if (v != EmptyStr) {
+    if (v == "0") {
+      Axis1EncRev=OFF;
+      nv.write(EE_ENC_A1_REV,Axis1EncRev);
+      EEwrite=true;
+    }
+    if (v == "1") {
+      Axis1EncRev=ON;
+      nv.write(EE_ENC_A1_REV,Axis1EncRev);
+      EEwrite=true;
+    }
+  }
+
+  v = server.arg("a2rev");
+  if (v != EmptyStr) {
+    if (v == "0") {
+      Axis2EncRev=OFF;
+      nv.writeInt(EE_ENC_A2_REV,Axis2EncRev);
+      EEwrite=true;
+    }
+    if (v == "1") {
+      Axis2EncRev=ON;
+      nv.writeInt(EE_ENC_A2_REV,Axis2EncRev);
+      EEwrite=true;
+    }
+  }
+
+  v = server.arg("revert");
+  if (v != EmptyStr) { 
+    if (v == "1") {
+      Axis1EncTicksPerDeg=AXIS1_ENC_TICKS_DEG;
+      nv.writeDouble(EE_ENC_A1_TICKS,Axis1EncTicksPerDeg);
+      Axis1EncRev=AXIS1_ENC_REVERSE;
+      nv.writeInt(EE_ENC_A1_REV,Axis1EncRev);
+      Axis1EncDiffTo=AXIS1_ENC_DIFF_LIMIT_TO;
+      nv.writeLong(EE_ENC_A1_DIFF_TO,Axis1EncDiffTo);
+      EEwrite=true;
+    }
+    if (v == "2") {
+      Axis2EncTicksPerDeg=AXIS2_ENC_TICKS_DEG;
+      nv.writeDouble(EE_ENC_A2_TICKS,Axis2EncTicksPerDeg);
+      Axis2EncRev=AXIS1_ENC_REVERSE;
+      nv.writeInt(EE_ENC_A2_REV,Axis2EncRev);
+      Axis2EncDiffTo=AXIS2_ENC_DIFF_LIMIT_TO;
+      nv.writeLong(EE_ENC_A2_DIFF_TO,Axis2EncDiffTo);
       EEwrite=true;
     }
   }
 
 #if AXIS1_ENC_RATE_CONTROL == ON
   // OnStep rate control
-  v=server.arg("rc");
-  if (v!="") {
+  v = server.arg("rc");
+  if (v != EmptyStr) {
     if (v=="on") encRateControl=true;
     if (v=="off") encRateControl=false;
   }
 
   // Encoder averaging samples
-  v=server.arg("sa");
-  if (v!="") {
+  v = server.arg("sa");
+  if (v != EmptyStr) {
     int i;
     if ( (atoi2((char*)v.c_str(),&i)) && ((i>=1) && (i<=999))) { 
       Axis1EncStaSamples=i;
-#ifndef EEPROM_DISABLED
-      EEPROM_writeLong(608,Axis1EncStaSamples);
-#endif
+      nv.writeLong(EE_ENC_RC_STA,Axis1EncStaSamples);
       EEwrite=true;
     }
   }
-  v=server.arg("la");
-  if (v!="") {
+  v = server.arg("la");
+  if (v != EmptyStr) {
     int i;
     if ( (atoi2((char*)v.c_str(),&i)) && ((i>=1) && (i<=999))) { 
       Axis1EncLtaSamples=i;
-#ifndef EEPROM_DISABLED
-      EEPROM_writeLong(612,Axis1EncLtaSamples);
-#endif
+      nv.writeLong(EE_ENC_RC_LTA,Axis1EncLtaSamples);
       EEwrite=true;
     }
   }
 
   // Encoder proportional response
-  v=server.arg("pr");
-  if (v!="") {
+  v = server.arg("pr");
+  if (v != EmptyStr) {
     int i;
     if ( (atoi2((char*)v.c_str(),&i)) && ((i>=50) && (i<=5000))) { 
       Axis1EncProp=i;
-#ifndef EEPROM_DISABLED
-      EEPROM_writeLong(632,Axis1EncProp);
-#endif
+      nv.writeLong(EE_ENC_RC_PROP,Axis1EncProp);
       EEwrite=true;
     }
   }
   
   // Encoder minimum guide
-  v=server.arg("mg");
-  if (v!="") {
+  v = server.arg("mg");
+  if (v != EmptyStr) {
     int i;
     if ( (atoi2((char*)v.c_str(),&i)) && ((i>=25) && (i<=1000))) { 
       Axis1EncMinGuide=i;
-#ifndef EEPROM_DISABLED
-      EEPROM_writeLong(636,Axis1EncMinGuide);
-#endif
+      nv.writeLong(EE_ENC_MIN_GUIDE,Axis1EncMinGuide);
       EEwrite=true;
     }
   }
 
   // Encoder rate compensation
-  v=server.arg("er");
-  if (v!="") {
+  v = server.arg("er");
+  if (v != EmptyStr) {
     int l=0;
     l=strtol(v.c_str(),NULL,10);
     if ((l>=-99999) && (l<=99999)) {
       axis1EncRateComp=(float)l/1000000.0;
-#ifndef EEPROM_DISABLED
-      EEPROM_writeLong(616,l);
-#endif
+      nv.writeLong(EE_ENC_RC_RCOMP,l);
       EEwrite=true;
     }
   }
 
 #if AXIS1_ENC_INTPOL_COS == ON
   // Encoder interpolation compensation
-  v=server.arg("ip"); // phase
-  if (v!="") {
+  v = server.arg("ip"); // phase
+  if (v != EmptyStr) {
     int i;
     if ( (atoi2((char*)v.c_str(),&i)) && ((i>=0) && (i<=255))) { 
       Axis1EncIntPolPhase=i;
-#ifndef EEPROM_DISABLED
-      EEPROM_writeLong(624,i);
-#endif
+      nv.writeLong(EE_ENC_RC_INTP_P,i);
       EEwrite=true;
     }
   }
-  v=server.arg("im"); // magnitude
-  if (v!="") {
+  v = server.arg("im"); // magnitude
+  if (v != EmptyStr) {
     int i;
     if ( (atoi2((char*)v.c_str(),&i)) && ((i>=0) && (i<=29000))) { 
       Axis1EncIntPolMag=i;
-#ifndef EEPROM_DISABLED
-      EEPROM_writeLong(628,i);
-#endif
+      nv.writeLong(EE_ENC_RC_INTP_M,i);
       EEwrite=true;
     }
   }
 #endif // AXIS1_ENC_INTPOL_COS == ON
 
   // Sweep control
-  v=server.arg("sw");
-  if (v!="") {
+  v = server.arg("sw");
+  if (v != EmptyStr) {
     if (v=="on") encSweep=true;
     if (v=="off") encSweep=false;
   }
 
 #endif // AXIS1_ENC_RATE_CONTROL == ON
 
-#ifndef EEPROM_COMMIT_DISABLED
-  if (EEwrite) EEPROM.commit();
-#endif
+  nv.commit();
 }
 
 #endif

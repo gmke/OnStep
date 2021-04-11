@@ -30,9 +30,26 @@
   #define SERIAL_C_BAUD_DEFAULT SERIAL_C_BLUETOOTH_NAME
 #endif
 
+// SerialD
+#if PINMAP == InsteinESP1
+  #ifndef SERIAL_D_BAUD_DEFAULT
+    #define SERIAL_D_BAUD_DEFAULT 9600
+  #endif
+  #define SerialD Serial1
+  #define SERIAL_D_RX 21
+  #define SERIAL_D_TX 22
+  #define HAL_SERIAL_D_ENABLED
+#elif defined(SERIAL_D_BAUD_DEFAULT)
+  #if SERIAL_D_BAUD_DEFAULT != OFF
+    #define SerialD Serial1
+    #define HAL_SERIAL_D_ENABLED
+  #endif
+#endif
+
 // New symbol for the default I2C port ---------------------------------------------------------------
 #include <Wire.h>
 #define HAL_Wire Wire
+#define HAL_WIRE_CLOCK 100000
 
 //--------------------------------------------------------------------------------------------------
 // Nanoseconds delay function
@@ -44,7 +61,7 @@ IRAM_ATTR void delayNanoseconds(unsigned int n) {
 
 //--------------------------------------------------------------------------------------------------
 // General purpose initialize for HAL
-void HAL_Init(void) {
+void HAL_Initialize(void) {
   // calibrate delayNanoseconds()
   uint32_t startTime,npp;
   cli(); startTime=micros(); delayNanoseconds(65535); npp=micros(); sei(); npp=((int32_t)(npp-startTime)*1000)/63335;

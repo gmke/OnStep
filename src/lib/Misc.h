@@ -28,6 +28,69 @@ bool atof2(char *a, double *d, bool sign=true) {
   return true;
 }
 
+// convert axis settings string into numeric form
+bool decodeAxisSettings(char s[], axisSettings &a) {
+  if (strcmp(s,"0") != 0) {
+    char *ws=s;
+    char *conv_end;
+    double f=strtod(ws,&conv_end); if (&s[0] != conv_end) a.stepsPerMeasure=f; else return false;
+    ws=strchr(ws,','); if (ws != NULL) {
+      ws++; a.microsteps=strtol(ws,NULL,10);
+      ws=strchr(ws,','); if (ws != NULL) {
+        ws++; a.IRUN=strtol(ws,NULL,10);
+        ws=strchr(ws,','); if (ws != NULL) {
+          ws++; a.reverse=strtol(ws,NULL,10);
+          ws=strchr(ws,','); if (ws != NULL) {
+            ws++; a.min=strtol(ws,NULL,10);
+            ws=strchr(ws,','); if (ws != NULL) {
+              ws++; a.max=strtol(ws,NULL,10);
+              return true;
+            }
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
+// convert axis settings string into numeric form
+bool validateAxisSettings(int axisNum, bool altAz, volatile axisSettings &a) {
+  int   MinLimitL[5]   = {-270,-90,-360,  0,  0};
+  int   MinLimitH[5]   = { -90,  0,   0,500,500};
+  int   MaxLimitL[5]   = {  90,  0,   0,  0,  0};
+  int   MaxLimitH[5]   = { 270, 90, 360,500,500};
+  float StepsLimitL[5] = {   150.0,   150.0,    5.0, 0.005, 0.005};
+  float StepsLimitH[5] = {122400.0,122400.0, 7200.0,  20.0,  20.0};
+  int   IrunLimitH[5]  = { 3000, 3000, 1000, 1000, 1000};
+  if (altAz) { MinLimitL[0]=-360; MinLimitH[0]=-180; MaxLimitL[0]=180; MaxLimitH[0]=360; }
+  axisNum--;
+  if (a.stepsPerMeasure < StepsLimitL[axisNum] || a.stepsPerMeasure > StepsLimitH[axisNum]) { DF("ERR, validateAxisSettings(): Axis"); D(axisNum+1); DF(" bad stepsPerMeasure="); DL(a.stepsPerMeasure); return false; }
+  if (a.microsteps != OFF && (a.microsteps < 1 || a.microsteps > 256)) { DF("ERR, validateAxisSettings(): Axis"); D(axisNum+1); DF(" bad microsteps="); DL(a.microsteps); return false; }
+  if (a.IRUN != OFF && (a.IRUN < 0 || a.IRUN > IrunLimitH[axisNum])) { DF("ERR, validateAxisSettings(): Axis"); D(axisNum+1); DF(" bad IRUN="); DL(a.IRUN); return false; }
+  if (a.reverse != OFF && a.reverse != ON) { DF("ERR, validateAxisSettings(): Axis"); D(axisNum+1); DF(" bad reverse="); DL(a.reverse); return false; }
+  if (a.min < MinLimitL[axisNum] || a.min > MinLimitH[axisNum]) { DF("ERR, validateAxisSettings(): Axis"); D(axisNum+1); DF(" bad min="); DL(a.min); return false; }
+  if (a.max < MaxLimitL[axisNum] || a.max > MaxLimitH[axisNum]) { DF("ERR, validateAxisSettings(): Axis"); D(axisNum+1); DF(" bad max="); DL(a.max); return false; }
+  return true;
+}
+
+// keep extended axis settings within reasonable limits
+void constrainAxisSettingsEx(int axisNum, int subModel, int IRUN_DEFAULT, volatile axisSettings &a, AxisSettingsEx &aEx) {
+  if (a.IRUN < 0) a.IRUN=0;
+  if (aEx.IHOLD < 0) aEx.IHOLD=0;
+  if (aEx.IGOTO < 0) aEx.IGOTO=0;
+
+  int maxCurrent=1500;
+  if (subModel == TMC5160) maxCurrent=3000;
+  if (axisNum > 2) maxCurrent=1000; 
+  if (a.IRUN > maxCurrent)    { a.IRUN=maxCurrent;    VF("MSG, constrainAxisSettingsEx(): Axis"); D(axisNum+1); VF(" IRUN  current limited to <= "); V(maxCurrent); VLF("mA"); }
+  if (aEx.IHOLD > maxCurrent) { aEx.IHOLD=maxCurrent; VF("MSG, constrainAxisSettingsEx(): Axis"); D(axisNum+1); VF(" IHOLD current limited to <= "); V(maxCurrent); VLF("mA"); }
+  if (aEx.IGOTO > maxCurrent) { aEx.IGOTO=maxCurrent; VF("MSG, constrainAxisSettingsEx(): Axis"); D(axisNum+1); VF(" IGOTO current limited to <= "); V(maxCurrent); VLF("mA"); }
+  
+  int minHold=200; if (axisNum > 2) minHold=150;
+  if (a.IRUN != IRUN_DEFAULT) { aEx.IHOLD=a.IRUN/2; if (aEx.IHOLD < minHold) aEx.IHOLD=minHold; if (axisNum <= 2) aEx.IGOTO=a.IRUN; }
+}
+
 // numeric help
 double timeRange(double t) {
   while (t >= 24.0) t-=24.0;

@@ -16,7 +16,7 @@ CommandErrors setPark() {
   // store our position
   nv.writeFloat(EE_posAxis1,getInstrAxis1());
   nv.writeFloat(EE_posAxis2,getInstrAxis2());
-  int p=getInstrPierSide(); if (p == PierSideNone) nv.write(EE_pierSide,PierSideEast); else nv.write(EE_pierSide,p);
+  int p=getInstrPierSide(); if (p == PIER_SIDE_NONE) nv.write(EE_pierSide,PIER_SIDE_EAST); else nv.write(EE_pierSide,p);
 
   // record our park status
   parkSaved=true; nv.write(EE_parkSaved,parkSaved);
@@ -46,7 +46,7 @@ CommandErrors park() {
   lastTrackingState=TrackingNone;
   trackingState=TrackingNone;
 
-#if MOUNT_TYPE != ALTAZM
+#if AXIS1_PEC == ON
   // turn off the PEC while we park
   disablePec();
   pecStatus=IgnorePEC;
@@ -63,10 +63,10 @@ CommandErrors park() {
   double parkTargetAxis1=nv.readFloat(EE_posAxis1);
   double parkTargetAxis2=nv.readFloat(EE_posAxis2);
   int parkPierSide=nv.read(EE_pierSide);
-  if (parkPierSide != PierSideNone && parkPierSide != PierSideEast && parkPierSide != PierSideWest) { parkPierSide=PierSideNone; DLF("ERR, park(): bad NV parkPierSide"); }
+  if (parkPierSide != PIER_SIDE_NONE && parkPierSide != PIER_SIDE_EAST && parkPierSide != PIER_SIDE_WEST) { parkPierSide=PIER_SIDE_NONE; DLF("ERR, park(): bad NV parkPierSide"); }
 
   // now, goto this target coordinate
-  e=goTo(parkTargetAxis1,parkTargetAxis2,parkTargetAxis1,parkTargetAxis2,parkPierSide);
+  e=goTo(parkTargetAxis1,parkTargetAxis2,parkTargetAxis1,parkTargetAxis2,parkPierSide,false);
   if (e != CE_NONE) {
     trackingState=abortTrackingState; // resume tracking state
     parkStatus=lastParkStatus;        // revert the park status
@@ -179,10 +179,14 @@ CommandErrors unPark(bool withTrackingOn) {
   if (!parkSaved)                       return CE_NO_PARK_POSITION_SET;
   if (parkStatus != Parked && !atHome)  return CE_NOT_PARKED;
 #if STRICT_PARKING == ON
-  if (parkStatus != Parked)             return CE_NOT_PARKED;
+  if (parkStatus != Parked) {
+    VLF("MSG: Un-Park ignored, not parked");
+    return CE_NONE;
+  }
 #endif
   if (isSlewing())                      return CE_MOUNT_IN_MOTION;
   if (faultAxis1 || faultAxis2)         return CE_SLEW_ERR_HARDWARE_FAULT;
+  if (!timeWasSet || !dateWasSet)       return CE_PARKED;
 
   VLF("MSG: Un-Parking");
 
@@ -197,7 +201,7 @@ CommandErrors unPark(bool withTrackingOn) {
   // the polar home position
   currentAlt=45.0;
   doFastAltCalc(true);
-  InitStartPosition();
+  initStartPosition();
 
   // stop the motor timers (except guiding)
   cli(); trackingTimerRateAxis1=0.0; trackingTimerRateAxis2=0.0; sei(); delay(11);
@@ -207,7 +211,7 @@ CommandErrors unPark(bool withTrackingOn) {
 
   // get suggested park position
   int parkPierSide=nv.read(EE_pierSide);
-  if (parkPierSide != PierSideNone && parkPierSide != PierSideEast && parkPierSide != PierSideWest) { parkPierSide=PierSideNone; DLF("ERR, unPark(): bad NV parkPierSide"); }
+  if (parkPierSide != PIER_SIDE_NONE && parkPierSide != PIER_SIDE_EAST && parkPierSide != PIER_SIDE_WEST) { parkPierSide=PIER_SIDE_NONE; DLF("ERR, unPark(): bad NV parkPierSide"); }
 
   setTargetAxis1(nv.readFloat(EE_posAxis1),parkPierSide);
   setTargetAxis2(nv.readFloat(EE_posAxis2),parkPierSide);
@@ -220,13 +224,10 @@ CommandErrors unPark(bool withTrackingOn) {
   posAxis1=targetAxis1.part.m;
   posAxis2=targetAxis2.part.m;
   sei();
+  atHome=false;
   
   // set Meridian Flip behaviour to match mount type
-  #if MOUNT_TYPE == GEM
-    meridianFlip=MeridianFlipAlways;
-  #else
-    meridianFlip=MeridianFlipNever;
-  #endif
+  if (mountType == GEM) meridianFlip=MeridianFlipAlways; else meridianFlip=MeridianFlipNever;
 
   if (withTrackingOn) {
     // update our status, we're not parked anymore
@@ -248,28 +249,28 @@ CommandErrors unPark(bool withTrackingOn) {
   return CE_NONE;
 }
 
-boolean isParked() {
+bool isParked() {
   return (parkStatus == Parked);
 }
 
-boolean saveAlignModel() {
+bool saveAlignModel() {
   // and store our corrections
-  Align.writeCoe();
+  if (mountType == ALTAZM) AlignH.writeCoe(); else AlignE.writeCoe();
   nv.writeFloat(EE_indexAxis1,indexAxis1);
   nv.writeFloat(EE_indexAxis2,indexAxis2);
   return true;
 }
 
-boolean loadAlignModel() {
+bool loadAlignModel() {
   // get align/corrections
   indexAxis1=nv.readFloat(EE_indexAxis1);
-  indexAxis1Steps=(long)(indexAxis1*(double)AXIS1_STEPS_PER_DEGREE);
-  if (indexAxis1 < -720 || indexAxis1 > 720) { indexAxis1=0; DL("ERR, loadAlignModel(): bad NV indexAxis1"); }
+  if (indexAxis1 < -720 || indexAxis1 > 720) { indexAxis1=0; DLF("ERR, loadAlignModel(): bad NV indexAxis1"); }
+  indexAxis1Steps=(long)(indexAxis1*axis1Settings.stepsPerMeasure);
   
   indexAxis2=nv.readFloat(EE_indexAxis2);
-  indexAxis2Steps=(long)(indexAxis2*(double)AXIS2_STEPS_PER_DEGREE);
-  if (indexAxis2 < -720 || indexAxis2 > 720) { indexAxis2=0; DL("ERR, loadAlignModel(): bad NV indexAxis2"); }
+  if (indexAxis2 < -720 || indexAxis2 > 720) { indexAxis2=0; DLF("ERR, loadAlignModel(): bad NV indexAxis2"); }
+  indexAxis2Steps=(long)(indexAxis2*axis2Settings.stepsPerMeasure);
   
-  Align.readCoe();
+  if (mountType == ALTAZM) AlignH.readCoe(); else AlignE.readCoe();
   return true;
 }

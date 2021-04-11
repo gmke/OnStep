@@ -25,6 +25,7 @@
 #define L_FAILED "Failed"
 #define L_DEGREE "degree"
 #define L_ARCSEC "arc-sec"
+#define L_MICRON_PER_C "um/C"
 #define L_DAYS "Days"
 
 // common abbreviations
@@ -221,6 +222,12 @@
 #define L_FOC_AT_HOME  "At Home"
 #define L_FOCUSER "Focuser"
 #define L_FOC_AT_HALF "At Half Trvl?"
+#define L_FOC_TC "Temp. Comp?"
+#define L_FOC_TC_COEF "TC Coef."
+#define L_FOC_TC_DEADBAND "TC Deadband"
+#define L_FOC_TC_DB_UNITS "micron(s)"
+#define L_FOC_BACKLASH "Backlash"
+#define L_FOC_BL_UNITS "micron(s)"
 
 // rotator
 #define L_ROT_RET_HOME "Return Home"

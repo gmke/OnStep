@@ -53,8 +53,9 @@ const char html_libCatalogSelect2[] PROGMEM =
 "</select>&nbsp;\n";
 
 const char html_libSubmitCatalog[] PROGMEM =
-"<button id='up' disabled type='submit' onclick=\"busy(); t('cu',document.getElementById('catData').value);\">" L_UPLOAD "</button> "
-"<button id='down' disabled type='submit' onclick=\"busy(); s('cd',1);\">" L_DOWNLOAD "</button><br /><br />\n";
+"<button id='up' type='button' onclick=\"busy(); t('cu',document.getElementById('catData').value);\" disabled>" L_UPLOAD "</button> "
+"<button id='down' type='button' onclick=\"busy(); s('cd',1);\" disabled>" L_DOWNLOAD "</button>&nbsp;&nbsp;&nbsp;"
+"<button id='clr_btn' type='button' onclick=\"busy(); if (confirm('" L_ARE_YOU_SURE "?')) s('cc','clear')\">" L_CAT_CLEAR_LIB "</button><br /><br />\n";
 
 const char html_libShowMessage[] PROGMEM =
 "<div id='message' style='background-color: #222222; color: #aaaaaa; border: 1px solid #551111; width: 400px; padding: 2px;'>" L_NO_CATALOG ".</div><br />\n";
@@ -206,6 +207,7 @@ void libraryAjax() {
   }
   
   if (catalogIndexChanged) {
+    if (currentCatalog == 0) data += "clr_btn|" L_CAT_CLEAR_LIB "\n"; else data += "clr_btn|" L_CAT_CLEAR "\n";
     data += "up|disabled\n";
     strcpy(currentCatName,"");
     if (currentCatalog != 0) {
@@ -290,9 +292,28 @@ void processLibraryGet() {
   int i;
   char temp[40]="";
 
+  // Catalog clear
+  v = server.arg("cc");
+  if (v != EmptyStr) {
+    if (currentCatalog >= 0 && currentCatalog < 16) {
+      if (currentCatalog == 0) {
+        // clear library
+        commandBool(":Lo0#");
+        commandBlind(":L!#");
+      } else {
+        // clear this catalog
+        sprintf(temp,":Lo%ld#",(long)currentCatalog-1);
+        commandBool(temp);
+        commandBlind(":LL#");
+      }
+      catalogIndexChanged=true;
+      showMessage=L_CAT_DATA_REMOVED ".";
+    }
+  }
+
   // Catalog download
-  v=server.arg("cd");
-  if (v!="") {
+  v = server.arg("cd");
+  if (v != EmptyStr) {
     if (currentCatalog > 0 && currentCatalog < 16) {
       sprintf(temp,":Lo%ld#",(long)currentCatalog-1);
       if (!commandBool(temp)) currentCatalog=0;
@@ -304,8 +325,8 @@ void processLibraryGet() {
   // Object Name|Cat|---RA---|---Dec---
   // ccccccccccc,ccc,HH:MM:SS,sDD*MM:SS
   // NGC6813    ,DN ,19:41:08,+27*20:22
-  v=server.arg("cu");
-  if (v!="") {
+  v = server.arg("cu");
+  if (v != EmptyStr) {
     showMessage="";
     
     uploadCatalogData = true;
@@ -369,8 +390,8 @@ void processLibraryGet() {
   }
 
   // Catalog index (1-15)
-  v=server.arg("ci");
-  if (v != "") {
+  v = server.arg("ci");
+  if (v != EmptyStr) {
     currentCatalog=v.toInt();
     if (currentCatalog > 0 && currentCatalog < 16) {
       sprintf(temp,":Lo%ld#",(long)currentCatalog-1);

@@ -18,7 +18,7 @@ class tmcSpiDriver {
     // decay mode:           decay_mode (STEALTHCHOP or SPREADCYCLE)
     // microstepping mode:   micro_step_mode (0=256x, 1=128x, 2=64x, 3=32x, 4=16x, 5=8x, 6=4x, 7=2x, 8=1x)
     // irun, ihold, rsense:  current in mA and sense resistor value
-    boolean setup(bool intpol, int decay_mode, byte micro_step_mode, int irun, int ihold) {
+    bool setup(bool intpol, int decay_mode, byte micro_step_mode, int irun, int ihold) {
       if (!BBSpi.begin()) return false;
       uint32_t data_out=0;
 
@@ -114,22 +114,23 @@ class tmcSpiDriver {
       return true;
     }
 
-    boolean error() {
+    bool error() {
       if (!BBSpi.begin()) return false;
 
       // get global status register, look for driver error bit
       uint32_t data_out=0;
-      uint8_t result=read(REG_GSTAT,&data_out);
-
+      //uint8_t result=read(REG_GSTAT,&data_out);
+      uint8_t result=read(REG_DRVSTATUS,&data_out);
+      
       BBSpi.end();
-      if ((result&2) != 0) return true; else return false;
+      if ((result&2) != 0 || (result == 0 && data_out == 0)) return true; else return false;
       return true;
     }
 
 // -------------------------------
 // CHOPCONF settings
 
-    boolean refresh_CHOPCONF(byte micro_step_mode) {
+    bool refresh_CHOPCONF(byte micro_step_mode) {
       // default=0x00008008UL
       if (_driver_model == TMC2130) _last_chop_config=(_cc_toff<<0)+(_cc_hstart<<4)+(_cc_hend<<7)+(_cc_rndtf<<13)+(_cc_tbl<<15)+(_cc_vsense<<17)+(_cc_vhighfs<<18)+(_cc_vhighchm<<19)+(_cc_intpol<<28);
       // default=0x10410150UL
@@ -205,7 +206,7 @@ class tmcSpiDriver {
 
       // get global status register, look for driver error bit
       uint32_t data_out=0;
-      read(REG_DRVSTATUS,&data_out);
+      uint8_t result=read(REG_DRVSTATUS,&data_out);
       
       BBSpi.pause();
       
@@ -214,6 +215,7 @@ class tmcSpiDriver {
       read(REG_DRVSTATUS,&data_out);
 
       // get the extended status info.
+      if (data_out != 0 || result != 0) {
       _stst=(bool)bitRead(data_out,31);      // DRV_STATUS 31 Standstill
       _olb =(bool)bitRead(data_out,30);      // DRV_STATUS 30 Open Load B
       _ola =(bool)bitRead(data_out,29);      // DRV_STATUS 29 Open Load A
@@ -221,10 +223,14 @@ class tmcSpiDriver {
       _s2gb=(bool)bitRead(data_out,27);      // DRV_STATUS 27 Short to Ground A
       _otpw=(bool)bitRead(data_out,26);      // DRV_STATUS 26 Overtemperature Pre-warning 120C
       _ot  =(bool)bitRead(data_out,25);      // DRV_STATUS 25 Overtemperature Shutdown 150C
-      _stallGuard=(bool)bitRead(data_out,24);// DRV_STATUS 24 Overtemperature Shutdown 150C
-      _CS_ACTUAL=(data_out>>16)&0b011111;    // DRV_STATUS 16 stallGuard2 status
+      _stallGuard=(bool)bitRead(data_out,24);// DRV_STATUS 24 stallGuard2 status
+      _CS_ACTUAL=(data_out>>16)&0b011111;    // DRV_STATUS 16 Actual current control scaling
       _fsactive =(bool)bitRead(data_out,15); // DRV_STATUS 15 Full step active indicator
       _SG_RESULT=data_out&0b1111111111;      // DRV_STATUS  0 stallGuard2 result
+      } else {
+        _stst=true; _olb=true; _ola=true; _s2ga=true; _s2gb=true; _otpw=true; _ot=true;
+        _stallGuard=false; _CS_ACTUAL=0; _fsactive=false; _SG_RESULT=0;       
+      }
 
       BBSpi.end();
       return sgResult;
@@ -333,7 +339,7 @@ class tmcSpiDriver {
     unsigned long _pc_PWM_GRAD = 0x04; // default=4,   range 0 to 14  (PWM gradient scale using automatic current control)
     unsigned long _pc_pwm_freq = 0x01; // default=1,   range 0 to 3   (PWM frequency 0: fpwm=2/1024 fclk, 1: fpwm=2/683 fclk, 2: fpwm=2/512 fclk, 3: fpwm=2/410 fclk)
     unsigned long _pc_pwm_auto = 0x01; // default=1,   range 0 to 1   (PWM automatic current control 0: off, 1: on)
-    unsigned long _pc_pwm_freewheel=0x00; //default=0, range 0 to 1   (PWM freewheel 0: normal, 1: freewheel, 2:LS short, 3: HS short)
+    unsigned long _pc_pwm_freewheel=0x01; //default=1, range 0 to 3   (PWM freewheel 0: normal, 1: freewheel, 2:LS short, 3: HS short)
     // TMC2130 specific
     unsigned long _pc_PWM_AMPL = 0x80; // default=128, range 0 to 255 (PWM amplitude or switch back amplitude if pwm_auto=1)
     unsigned long _pc_pwm_sym  = 0x00; // default=0,   range 0 to 1   (PWM symmetric 0: value may change during cycle, 1: enforce; 0: disable autograd on TMC5160/5161)

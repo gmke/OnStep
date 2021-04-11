@@ -2,7 +2,7 @@
 // Astronomy related functions
 
 // convert string in format MM/DD/YY to julian date
-boolean dateToDouble(double *JulianDay, char *date) {
+bool dateToDouble(double *JulianDay, char *date) {
   char m[3],d[3],y[3];
   int  m1,d1,y1;
   
@@ -22,7 +22,7 @@ boolean dateToDouble(double *JulianDay, char *date) {
 // (also handles)           HH:MM.M
 // (also handles)           HH:MM:SS
 // (also handles)           HH:MM:SS.SSSS
-boolean hmsToDouble(double *f, char *hms, PrecisionMode p) {
+bool hmsToDouble(double *f, char *hms, PrecisionMode p) {
   char h[3],m[5];
   int  h1,m1,m2=0;
   double s1=0;
@@ -59,7 +59,13 @@ boolean hmsToDouble(double *f, char *hms, PrecisionMode p) {
   
   if (h1 < 0 || h1 > 23 || m1 < 0 || m1 > 59 || m2 < 0 || m2 > 9 || s1 < 0 || s1 > 59.9999) return false;
 
-  *f=h1+m1/60.0+m2/600.0+s1/3600.0;
+  *f=(double)h1+(double)m1/60.0+(double)m2/600.0+s1/3600.0;
+  return true;
+}
+bool hmsToDouble(double *f, char *hms) {
+  if (!hmsToDouble(f,hms,PM_HIGHEST))
+    if (!hmsToDouble(f,hms,PM_HIGH))
+      if (!hmsToDouble(f,hms,PM_LOW)) return false;
   return true;
 }
 
@@ -100,11 +106,11 @@ void doubleToHms(char *reply, double *f, PrecisionMode p) {
 //                          DDD:MM
 //                          sDD*MM
 //                          DDD*MM
-boolean dmsToDouble(double *f, char *dms, boolean sign_present, PrecisionMode p) {
+bool dmsToDouble(double *f, char *dms, bool sign_present, PrecisionMode p) {
   char d[4],m[5];
   int d1,m1,lowLimit=0,highLimit=360,len;
   double s1=0,sign=1;
-  boolean secondsOff=false;
+  bool secondsOff=false;
 
   while (*dms == ' ') dms++; // strip prefix white-space
   if (strlen(dms) > 13) dms[13]=0; // maximum length
@@ -140,13 +146,19 @@ boolean dmsToDouble(double *f, char *dms, boolean sign_present, PrecisionMode p)
 
   if (sign_present) { lowLimit=-90; highLimit=90; }
   if ((d1 < lowLimit) || (d1 > highLimit) || (m1 < 0) || (m1 > 59) || (s1 < 0) || (s1 > 59.999)) return false;
-  
-  *f=sign*(d1+m1/60.0+s1/3600.0);
+
+  *f=sign*((double)d1+(double)m1/60.0+s1/3600.0);
+  return true;
+}
+bool dmsToDouble(double *f, char *dms, bool sign_present) {
+  if (!dmsToDouble(f,dms,sign_present,PM_HIGHEST))
+    if (!dmsToDouble(f,dms,sign_present,PM_HIGH))
+      if (!dmsToDouble(f,dms,sign_present,PM_LOW)) return false;
   return true;
 }
 
 // convert double to string in a variety of formats (as above) 
-void doubleToDms(char *reply, double *f, boolean fullRange, boolean signPresent, PrecisionMode p) {
+void doubleToDms(char *reply, double *f, bool fullRange, bool signPresent, PrecisionMode p) {
   char sign[]="+";
   int  o=0;
   double d1,m1,s1=0,s2,f1;
@@ -236,9 +248,13 @@ double jd2last(double JulianDay, double ut1, bool updateRTC) {
     // UT to local time
     double lmt=ut1-timeZone;
 
+#ifdef RTC_SKEW_IN_SECONDS
+    lmt+=RTC_SKEW_IN_SECONDS/3600.0;
+#endif
+
     // correct for day moving forward/backward... this works for multipule days of up-time
     double J=JulianDay;
-    while (lmt >= 24.0) { lmt=lmt-24.0; J=J-1.0; } 
+    while (lmt >= 24.0) { lmt=lmt-24.0; J=J-1.0; }
     if    (lmt < 0.0)   { lmt=lmt+24.0; J=J+1.0; }
 
     // set the RTC
@@ -309,19 +325,19 @@ void setLatitude(double Lat) {
   sinLat=sin(latitude/Rad);
   latitudeAbs=fabs(latitude);
   if (latitude >= 0) latitudeSign=1; else latitudeSign=-1;
-  if (latitude >= 0) defaultDirAxis1=defaultDirAxis1NCPInit; else defaultDirAxis1=defaultDirAxis1SCPInit;
+  if (latitude >= 0 || mountType == ALTAZM) {
+    if (axis1Settings.reverse == ON) defaultDirAxis1 = DefaultDirAxis1SCPInit; else defaultDirAxis1 = DefaultDirAxis1NCPInit;
+  } else {
+    if (axis1Settings.reverse == ON) defaultDirAxis1 = DefaultDirAxis1NCPInit; else defaultDirAxis1 = DefaultDirAxis1SCPInit;
+  }
 
-  // the polar home position
-#if MOUNT_TYPE == ALTAZM
-  homePositionAxis2=fabs(latitude);
-  if (latitude < 0) homePositionAxis1=180.0; else homePositionAxis1=0.0;
-#else
-  if (latitude < 0) homePositionAxis2=-90.0; else homePositionAxis2=90.0;
-#endif
+  // Declination home position changes sign with n/s hemisphere for Eq mounts
+  if (mountType != ALTAZM) {
+    if (latitude < 0) homePositionAxis2=-fabs(homePositionAxis2); else homePositionAxis2=fabs(homePositionAxis2);
+  }
 }
 
 // convert equatorial coordinates to horizon
-// this takes approx. 1.4mS on a 16MHz Mega2560
 void equToHor(double HA, double Dec, double *Alt, double *Azm) {
   HA =HA/Rad;
   Dec=Dec/Rad;
@@ -336,7 +352,6 @@ void equToHor(double HA, double Dec, double *Alt, double *Azm) {
 }
       
 // convert horizon coordinates to equatorial
-// this takes approx. 1.4mS
 void horToEqu(double Alt, double Azm, double *HA, double *Dec) { 
   Alt  = Alt/Rad;
   Azm  = Azm/Rad;
@@ -352,6 +367,8 @@ void horToEqu(double Alt, double Azm, double *HA, double *Dec) {
 
 // returns the amount of refraction (in arcminutes) at the given true altitude (degrees), pressure (millibars), and temperature (celsius)
 double trueRefrac(double Alt, double Pressure=1010.0, double Temperature=10.0) {
+  if (isnan(Pressure)) Pressure=1010.0;
+  if (isnan(Temperature)) Temperature=10.0;
   double TPC=(Pressure/1010.0) * (283.0/(273.0+Temperature));
   double r=( ( 1.02*cot( (Alt+(10.3/(Alt+5.11)))/Rad ) ) ) * TPC;  if (r < 0.0) r=0.0;
   return r;
@@ -359,6 +376,8 @@ double trueRefrac(double Alt, double Pressure=1010.0, double Temperature=10.0) {
 
 // returns the amount of refraction (in arcminutes) at the given apparent altitude (degrees), pressure (millibars), and temperature (celsius)
 double apparentRefrac(double Alt, double Pressure=1010.0, double Temperature=10.0) {
+  if (isnan(Pressure)) Pressure=1010.0;
+  if (isnan(Temperature)) Temperature=10.0;
   double r=trueRefrac(Alt,Pressure,Temperature);
   r=trueRefrac(Alt-(r/60.0),Pressure,Temperature);
   return r;
@@ -412,15 +431,17 @@ void observedPlaceToTopocentric(double *RA, double *Dec) {
 // _deltaAxis1/2 are in arc-seconds/second
 double _deltaAxis1=15.0,_deltaAxis2=0.0;
 
-boolean trackingSyncInProgress() {
+bool trackingSyncInProgress() {
   static int lastTrackingSyncSeconds=0;
-  
-  if ((trackingSyncSeconds > 0) && (trackingState != TrackingSidereal)) trackingSyncSeconds=0;
 
   // sound goto done
-  if ((trackingSyncSeconds == 0) and (lastTrackingSyncSeconds != trackingSyncSeconds)) soundAlert();
+  if (trackingSyncSeconds == 0 && lastTrackingSyncSeconds != trackingSyncSeconds) {
+    soundAlert();
+    VLF("MSG: Tracking sync done");
+  }
 
   lastTrackingSyncSeconds=trackingSyncSeconds;
+  if (trackingState != TrackingSidereal) trackingSyncSeconds=0;
 
   return trackingSyncSeconds > 0;
 }
@@ -430,74 +451,76 @@ void setDeltaTrackingRate() {
 
   if (trackingSyncInProgress()) {
     trackingSyncSeconds--;
-    
-  #if MOUNT_TYPE == ALTAZM
-    double a,z,d1,d2,newTargetAlt,newTargetAzm;
-    getHor(&a,&z);
-    double newTargetHA=haRange(LST()*15.0-newTargetRA);
-    equToHor(newTargetHA,newTargetDec,&newTargetAlt,&newTargetAzm);
-    d1=-(z-newTargetAzm);
-    d2=-(a-newTargetAlt);
-  #else
-    double r,d,d1,d2;
-    getEqu(&r,&d,false);
-    d1=r-newTargetRA;
-    d2=d-newTargetDec;
-    if (getInstrPierSide() == PierSideEast) d2=-d2;
-  #endif
-    if ((fabs(d1) < ArcSecPerStepAxis1/3600.0) && (fabs(d2) < ArcSecPerStepAxis2/3600.0)) {
+
+    double d1,d2,newTargetAlt,newTargetAzm;
+    if (mountType == ALTAZM) {
+      double a,z;
+      getHor(&a,&z);
+      double newTargetHA=haRange(LST()*15.0-newTargetRA);
+      equToHor(newTargetHA,newTargetDec,&newTargetAlt,&newTargetAzm);
+      d1=-(z-newTargetAzm);
+      d2=-(a-newTargetAlt);
+    } else {
+      double r,d;
+      getEqu(&r,&d,false);
+      d1=r-newTargetRA;
+      d2=d-newTargetDec;
+      if (getInstrPierSide() == PIER_SIDE_EAST) d2=-d2;
+    }
+
+    if ((fabs(d1) < arcSecPerStepAxis1/3600.0) && (fabs(d2) < arcSecPerStepAxis2/3600.0)) {
       trackingSyncSeconds=0;
     } else {
       f1=(d1*3600.0)/120.0; if (f1 < -5.0) f1=-5.0; if (f1 > 5.0) f1=5.0;
-      if (fabs(d1) < ArcSecPerStepAxis1/3600.0) f1=0.0;
+      if (fabs(d1) < arcSecPerStepAxis1/3600.0) f1=0.0;
       f2=(d2*3600.0)/120.0; if (f2 < -5.0) f2=-5.0; if (f2 > 5.0) f2=5.0;
-      if (fabs(d2) < ArcSecPerStepAxis2/3600.0) f2=0.0;
+      if (fabs(d2) < arcSecPerStepAxis2/3600.0) f2=0.0;
     }
   }
 
-#if MOUNT_TYPE != ALTAZM
-  if ((rateCompensation != RC_REFR_BOTH) && (rateCompensation != RC_FULL_BOTH)) _deltaAxis2=0.0;
-#endif
-  cli();
+  if (mountType != ALTAZM) {
+    if ((rateCompensation != RC_REFR_BOTH) && (rateCompensation != RC_FULL_BOTH)) _deltaAxis2=0.0;
+  }
+
   // trackingTimerRateAxis1/2 are x the sidereal rate
+  cli();
   if (trackingState == TrackingSidereal) trackingTimerRateAxis1=(_deltaAxis1/15.0)+f1; else trackingTimerRateAxis1=0.0;
   if (trackingState == TrackingSidereal) trackingTimerRateAxis2=(_deltaAxis2/15.0)+f2; else trackingTimerRateAxis2=0.0;
   sei();
-  fstepAxis1.fixed=doubleToFixed( (((double)AXIS1_STEPS_PER_DEGREE/240.0)*(_deltaAxis1/15.0))/100.0 );
-  fstepAxis2.fixed=doubleToFixed( (((double)AXIS2_STEPS_PER_DEGREE/240.0)*(_deltaAxis2/15.0))/100.0 );
+
+  fstepAxis1.fixed=doubleToFixed( ((axis1Settings.stepsPerMeasure/240.0)*(_deltaAxis1/15.0))/100.0 );
+  fstepAxis2.fixed=doubleToFixed( ((axis2Settings.stepsPerMeasure/240.0)*(_deltaAxis2/15.0))/100.0 );
 }
 
 double _currentRate=1.0;
 void setTrackingRate(double r) {
   _currentRate=r;
-#if MOUNT_TYPE != ALTAZM
-  _deltaAxis1=r*15.0;
-  _deltaAxis2=0.0;
-#endif
-}
-
-double getTrackingRate() {
-  return _currentRate;
+  if (mountType != ALTAZM) {
+    _deltaAxis1=r*15.0;
+    _deltaAxis2=0.0;
+  }
 }
 
 double getTrackingRate60Hz() {
-  double f;
-#if MOUNT_TYPE == ALTAZM
-    f=getTrackingRate()*1.00273790935*60.0; 
-#else
-    cli(); f=(trackingTimerRateAxis1*1.00273790935)*60.0; sei();
-#endif
+  double f=0;
+  // during slews, if tracking is enabled it's at the default sidereal rate
+  if (trackingState == TrackingMoveTo && lastTrackingState == TrackingSidereal) f=1.00273790935*60.0;
+  if (mountType == ALTAZM) {
+    if (trackingState == TrackingSidereal) f=_currentRate*1.00273790935*60.0;
+  } else {
+    if (trackingState == TrackingSidereal) { cli(); f=(trackingTimerRateAxis1*1.00273790935)*60.0; sei(); }
+  }
   return f;
 }
 
-double getStepsPerSecondAxis1() {
- double s=(((double)AXIS1_STEPS_PER_DEGREE/240.0)*(_deltaAxis1/15.0));
+double getstepsPerSecondAxis1() {
+ double s=((axis1Settings.stepsPerMeasure/240.0)*(_deltaAxis1/15.0));
  if (s < 8.0) s=8.0;
  return s;
 }
 
-double getStepsPerSecondAxis2() {
- double s=(((double)AXIS2_STEPS_PER_DEGREE/240.0)*(_deltaAxis2/15.0));
+double getstepsPerSecondAxis2() {
+ double s=((axis2Settings.stepsPerMeasure/240.0)*(_deltaAxis2/15.0));
  if (s < 8.0) s=8.0;
  return s;
 }
@@ -505,8 +528,8 @@ double getStepsPerSecondAxis2() {
 // -----------------------------------------------------------------------------------------------------------------------------
 // Low overhead altitude calculation, 16 calls to complete
 
-boolean doFastAltCalc(bool recalc) {
-  boolean done=false;
+bool doFastAltCalc(bool recalc) {
+  bool done=false;
   
   static byte ac_step = 0;
   static double ac_HA=0,ac_Dec=0;
@@ -572,17 +595,15 @@ double ztr(double a) {
   return x;
 }
 
-#if MOUNT_TYPE != ALTAZM
-
 // Distance in arc-min ahead of and behind the current Equ position, used for rate calculation
 #ifdef HAL_NO_DOUBLE_PRECISION
-#define RefractionRateRange 30.0
+  #define RefractionRateRange 30.0
 #else
-#define RefractionRateRange 1.0
+  #define RefractionRateRange 1.0
 #endif
 
-boolean doRefractionRateCalc() {
-  boolean done=false;
+bool doRefractionRateCalc() {
+  bool done=false;
 
   static int rr_step = 0;
   static double rr_Axis1=0,rr_Axis2=0;
@@ -610,7 +631,7 @@ boolean doRefractionRateCalc() {
   // get the instrument coordinates
   if ((rr_step == 10) || (rr_step == 110)) {
     if ((rateCompensation == RC_FULL_RA) || (rateCompensation == RC_FULL_BOTH)) {
-      Align.equToInstr(rr_HA,rr_Dec,&rr_HA,&rr_Dec,getInstrPierSide());
+      AlignE.equToInstr(rr_HA,rr_Dec,&rr_HA,&rr_Dec,getInstrPierSide());
     }
   }
 
@@ -645,7 +666,7 @@ boolean doRefractionRateCalc() {
       double dax1=(rr_HA1-rr_HA2)*(15.0/(RefractionRateRange/60.0))/2.0;
       if (fabs(_deltaAxis1-dax1) > 0.005) _deltaAxis1=dax1; else _deltaAxis1=(_deltaAxis1*9.0+dax1)/10.0;
       double dax2;
-      if (getInstrPierSide() == PierSideWest) {
+      if (getInstrPierSide() == PIER_SIDE_WEST) {
         dax2=(rr_Dec2-rr_Dec1)*(15.0/(RefractionRateRange/60.0))/2.0;
       } else {
         dax2=(rr_Dec1-rr_Dec2)*(15.0/(RefractionRateRange/60.0))/2.0;
@@ -668,17 +689,13 @@ boolean doRefractionRateCalc() {
   return done;
 }
 
-#endif
-
 // -----------------------------------------------------------------------------------------------------------------------------
 // AltAz tracking
 
-#if MOUNT_TYPE == ALTAZM
+#define AltAzTrackingRange 5  // distance in arc-min (10) ahead of and behind the current Equ position, used for rate calculation
 
-#define AltAzTrackingRange 10  // distance in arc-min (10) ahead of and behind the current Equ position, used for rate calculation
-
-boolean doHorRateCalc() {
-  boolean done=false;
+bool doHorRateCalc() {
+  bool done=false;
 
   static int az_step=0;
   static double az_Axis1=0,az_Axis2=0;
@@ -705,9 +722,9 @@ boolean doHorRateCalc() {
       sei();
     }
     // get the Azm
-    az_Azm=(double)az_Axis1/(double)AXIS1_STEPS_PER_DEGREE;
+    az_Azm=(double)az_Axis1/axis1Settings.stepsPerMeasure;
     // get the Alt
-    az_Alt=(double)az_Axis2/(double)AXIS2_STEPS_PER_DEGREE; 
+    az_Alt=(double)az_Axis2/axis2Settings.stepsPerMeasure; 
   } else
 
   // convert to Equatorial coords
@@ -762,25 +779,24 @@ boolean doHorRateCalc() {
   }
   return done;
 }
-#endif
 
 // -----------------------------------------------------------------------------------------------------------------------------
 // Acceleration rate calculation
 void setAccelerationRates(double maxRate) {
   
   // set the new guide acceleration rate
-  slewRateX  = (RateToXPerSec/(maxRate/16.0))*5.0;                // 5x for exponential factor average rate
-  slewRateX = slewRateX*((MaxRateBaseActual/2.0)/(maxRate/16.0)); // scale with maxRate so SLEW_ACCELERATION_DIST and SLEW_RAPID_STOP_DIST are approximately correct
+  slewRateX  = (RateToXPerSec/(maxRate/16.0))*7.0;                // 7x for exponential factor average rate
+  slewRateX = slewRateX*((maxRateBaseActual/2.0)/(maxRate/16.0)); // scale with maxRate so SLEW_ACCELERATION_DIST and SLEW_RAPID_STOP_DIST are approximately correct
   accXPerSec = slewRateX/SLEW_ACCELERATION_DIST;
   guideRates[9]=RateToASPerSec/(maxRate/16.0); guideRates[8]=guideRates[9]/2.0;
-  activeGuideRate=GuideRateNone;
+  activeGuideRateSelection=GR_NONE;
   
   // set the new goto acceleration rate
   cli();
-  StepsForRateChangeAxis1= (sqrt((double)SLEW_ACCELERATION_DIST*(double)AXIS1_STEPS_PER_DEGREE))*maxRate;
-  StepsForRateChangeAxis2= (sqrt((double)SLEW_ACCELERATION_DIST*(double)AXIS2_STEPS_PER_DEGREE))*maxRate;
+  stepsForRateChangeAxis1= (sqrt((double)SLEW_ACCELERATION_DIST*axis1Settings.stepsPerMeasure))*maxRate;
+  stepsForRateChangeAxis2= (sqrt((double)SLEW_ACCELERATION_DIST*axis2Settings.stepsPerMeasure))*maxRate;
   sei();
 
   // slewSpeed is in degrees per second
-  slewSpeed=(1000000.0/(maxRate/16.0))/AXIS1_STEPS_PER_DEGREE;
+  slewSpeed=(1000000.0/(maxRate/16.0))/axis1Settings.stepsPerMeasure;
 }
